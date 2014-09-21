@@ -1,10 +1,10 @@
 TEMPLATE = subdirs
 SUBDIRS = libcapi
+libcapi.file = libcapi.pro
 
-#CONFIG += build_tests
+CONFIG += build_tests
 build_tests: {
-SUBDIRS = \
+SUBDIRS += \
         test/zlib \
         test/sdl
 }
-libcapi.file = libcapi.pro
