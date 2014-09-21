@@ -18,6 +18,7 @@
 ******************************************************************************/
 
 #include <QtCore/QLibrary>
+// no need to include the C header if only functions declared there
 extern "C" {
 #include "zlib.h"
 }
