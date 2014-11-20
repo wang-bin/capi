@@ -23,6 +23,15 @@
 #include <QtDebug>
 #include <QtCore/QLibrary>
 
+#if defined(BUILD_CAPI_LIB)
+#  undef CAPI_EXPORT
+#  define CAPI_EXPORT Q_DECL_EXPORT
+#else
+#  undef CAPI_EXPORT
+// __declspec(dllimport) is better for dll. but static link can not set __declspec(dllimport).
+#  define CAPI_EXPORT //Q_DECL_IMPORT //only for vc?
+#endif
+
 namespace capi {
 namespace version {
     enum {
@@ -32,8 +41,15 @@ namespace version {
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
-    static const char build[] = "(" __DATE__ ", " __TIME__ ")";
+    // DO NOT use macro here because it's included outside, the "build" will change
+    CAPI_EXPORT const char* build();
 } //namespace version
+
+// set lib name with version
+enum {
+    NoVersion = -1,
+    EndVersion = -2
+};
 } //namespace capi
 /********************************** The following code is only used in .cpp **************************************************/
 /*!
@@ -52,6 +68,19 @@ namespace version {
     class api_dll : public capi::dll_helper { \
     public: \
         api_dll() : capi::dll_helper(names) \
+        { CAPI_DBG("dll symbols resolved...");}
+/*!
+  also defines possible library versions to be use. capi::NoVersion means no version suffix is used,
+  e.g. libz.so. Versions array MUST be end with capi::EndVersion;
+  below is an example to open libz.so, libz.so.1, libz.so.0 on unix
+  static const int ver[] = { capi::NoVersion, 1, 0, capi::EndVersion };
+  CAPI_BEGIN_DLL_VER(zlib, ver)
+  ...
+ */
+#define CAPI_BEGIN_DLL_VER(names, versions) \
+    class api_dll : public capi::dll_helper { \
+    public: \
+        api_dll() : capi::dll_helper(names, versions) \
         { CAPI_DBG("dll symbols resolved...");}
 
 #define CAPI_END_DLL() };
@@ -103,14 +132,6 @@ namespace version {
         } name##_resolver;
 
 
-#if defined(BUILD_CAPI_LIB)
-#  undef CAPI_EXPORT
-#  define CAPI_EXPORT Q_DECL_EXPORT
-#else
-#  undef CAPI_EXPORT
-// __declspec(dllimport) is better for dll. but static link can not set __declspec(dllimport).
-#  define CAPI_EXPORT //Q_DECL_IMPORT //only for vc?
-#endif
 namespace capi {
 /*
  * base ctor dll_helper("name")=>derived members in decl order(resolvers)=>derived ctor
@@ -118,6 +139,7 @@ namespace capi {
 class CAPI_EXPORT dll_helper {
 public:
     dll_helper(const char* names[]);
+    dll_helper(const char* names[], const int versions[]);
     virtual ~dll_helper() { m_lib.unload();}
     bool isLoaded() const { return m_lib.isLoaded(); }
     void* resolve(const char *symbol) { return (void*)m_lib.resolve(symbol);}

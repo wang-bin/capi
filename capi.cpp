@@ -20,6 +20,9 @@
 #include "capi.h"
 
 namespace capi {
+namespace version {
+const char* build() { return "(" __DATE__ ", " __TIME__ ")";}
+} //namespace version
 
 dll_helper::dll_helper(const char* names[])
 {
@@ -33,4 +36,23 @@ dll_helper::dll_helper(const char* names[])
         break;
     }
 }
+
+dll_helper::dll_helper(const char* names[], const int versions[])
+{
+    for (int i = 0; names[i]; ++i) {
+        for (int j = 0; versions[j] != capi::EndVersion; ++j) {
+            if (versions[j] == capi::NoVersion)
+                m_lib.setFileName(names[i]);
+            else
+                m_lib.setFileNameAndVersion(names[i], versions[j]);
+            if (!m_lib.load()) {
+                qDebug() << "can not load [" << m_lib.fileName() << "], error: " << m_lib.errorString();
+                continue;
+            }
+            qDebug() << " loaded" << m_lib.fileName();
+        }
+        break;
+    }
+}
+
 } //namespace capi

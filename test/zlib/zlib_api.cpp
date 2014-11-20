@@ -37,7 +37,7 @@ CAPI_DEFINE_RESOLVER(0, uLong, zlibCompileFlags)
 CAPI_END_DLL()
 
 api::api() : dll(new api_dll()) {
-    qDebug("capi::version: %s build %s", capi::version::name, capi::version::build);
+    qDebug("capi::version: %s build %s", capi::version::name, capi::version::build());
 }
 api::~api() { delete dll;}
 
