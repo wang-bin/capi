@@ -68,7 +68,7 @@ enum {
     class api_dll : public capi::dll_helper { \
     public: \
         api_dll() : capi::dll_helper(names) \
-        { CAPI_DBG("dll symbols resolved...");}
+        { CAPI_DBG_RESOLVE("dll symbols resolved...");}
 /*!
   also defines possible library versions to be use. capi::NoVersion means no version suffix is used,
   e.g. libz.so. Versions array MUST be end with capi::EndVersion;
@@ -81,7 +81,7 @@ enum {
     class api_dll : public capi::dll_helper { \
     public: \
         api_dll() : capi::dll_helper(names, versions) \
-        { CAPI_DBG("dll symbols resolved...");}
+        { CAPI_DBG_RESOLVE("dll symbols resolved...");}
 
 #define CAPI_END_DLL() };
 
@@ -105,7 +105,7 @@ enum {
 /************The followings are used internally**********/
 #define CAPI_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
     R api::name ARG_T_V { \
-        CAPI_DBG(); \
+        CAPI_DBG_CALL(); \
         Q_ASSERT_X(dll, Q_FUNC_INFO, "class api_dll not initialized"); \
         return dll->name ARG_V; \
     }
@@ -122,12 +122,12 @@ enum {
                 name##_t *p = (name##_t*)((quint8*)this - diff); \
                 api_dll* dll = (api_dll*)((quint8*)this - ((qptrdiff)(&((api_dll*)0)->name##_resolver))); \
                 if (!dll->isLoaded()) { \
-                    CAPI_DBG("dll not loaded"); \
+                    CAPI_DBG_LOAD("dll not loaded"); \
                     *p = 0; \
                     return; \
                 } \
                 *p = (name##_t)dll->resolve(#sym); \
-                CAPI_DBG("dll::" #name ": %p", *p); \
+                CAPI_DBG_RESOLVE("dll::" #name ": %p", *p); \
             } \
         } name##_resolver;
 
@@ -177,12 +177,34 @@ template<> struct Default<void*> { enum { value = 0};};
 #ifdef CAPI_DBG
 #undef CAPI_DBG
 #endif //CAPI_DBG
+
 #ifdef DEBUG
 #define CAPI_DBG(fmt, ...) \
     qDebug("[%s] %s@%d: " fmt, __FILE__, Q_FUNC_INFO, __LINE__, ##__VA_ARGS__);
+#define DEBUG_LOAD
+#define DEBUG_RESOLVE
+#define DEBUG_CALL
 #else
 #define CAPI_DBG(...)
 #endif //DEBUG
+#ifdef DEBUG_LOAD
+#define CAPI_DBG_LOAD(fmt, ...) \
+    qDebug("[%s] %s@%d: " fmt, __FILE__, Q_FUNC_INFO, __LINE__, ##__VA_ARGS__);
+#else
+#define CAPI_DBG_LOAD(...)
+#endif //DEBUG_LOAD
+#ifdef DEBUG_RESOLVE
+#define CAPI_DBG_RESOLVE(fmt, ...) \
+    qDebug("[%s] %s@%d: " fmt, __FILE__, Q_FUNC_INFO, __LINE__, ##__VA_ARGS__);
+#else
+#define CAPI_DBG_RESOLVE(...)
+#endif //DEBUG_RESOLVE
+#ifdef DEBUG_CALL
+#define CAPI_DBG_CALL(fmt, ...) \
+    qDebug("[%s] %s@%d: " fmt, __FILE__, Q_FUNC_INFO, __LINE__, ##__VA_ARGS__);
+#else
+#define CAPI_DBG_CALL(...)
+#endif //DEBUG_CALL
 
 /*!
  * used by .cpp to define the api

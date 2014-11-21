@@ -50,8 +50,8 @@ dll_helper::dll_helper(const char* names[], const int versions[])
                 continue;
             }
             qDebug() << " loaded" << m_lib.fileName();
+            break;
         }
-        break;
     }
 }
 
