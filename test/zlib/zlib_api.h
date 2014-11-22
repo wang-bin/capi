@@ -31,7 +31,8 @@ class api
 {
 public:
     api();
-    ~api();
+    virtual ~api();
+    virtual bool loaded() const;
     const char* zlibVersion();
     uLong zlibCompileFlags();
 private:

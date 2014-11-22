@@ -9,7 +9,7 @@ class api_dll;
 class api {
 public:
     api();
-    ~api();
+    virtual ~api();
     int SDL_Init(Uint32 flags);
     void SDL_Quit(void);
     int SDL_PollEvent(SDL_Event *event);
