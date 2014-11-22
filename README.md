@@ -15,7 +15,7 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
     {
     public:
         api();
-        ~api();
+        virtual ~api();
         const char* zlibVersion();
         uLong zlibCompileFlags();
     private:
@@ -59,8 +59,10 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
         return 0;
     }
 
-###TODO
+### Auto Code Generation
 
-1. Write a tool to generate the header and source from the original ones automatically
+There is a tool to help you generate header and source: https://github.com/wang-bin/mkapi
 
+The tool is based on clang 3.4.
 
+Run `make` to build the tool then run `./mkapi.sh -name zlib zlib.h` to generate zlib_api.h and zlib_api.cpp.
