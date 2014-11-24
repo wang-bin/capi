@@ -1,3 +1,4 @@
+QT = core
 TEMPLATE = subdirs
 SUBDIRS = libcapi
 libcapi.file = libcapi.pro
