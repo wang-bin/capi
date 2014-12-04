@@ -24,8 +24,17 @@ namespace version {
 const char* build() { return "(" __DATE__ ", " __TIME__ ")";}
 } //namespace version
 
+
+static void check_first_ctor() {
+    static bool is_1st = true;
+    if (is_1st) {
+        is_1st = false;
+        qDebug("capi::version: %s build %s", capi::version::name, capi::version::build());
+    }
+}
 dll_helper::dll_helper(const char* names[])
 {
+    check_first_ctor();
     for (int i = 0; names[i]; ++i) {
         m_lib.setFileName(names[i]);
         if (!m_lib.load()) {
@@ -39,6 +48,7 @@ dll_helper::dll_helper(const char* names[])
 
 dll_helper::dll_helper(const char* names[], const int versions[])
 {
+    check_first_ctor();
     for (int i = 0; names[i]; ++i) {
         for (int j = 0; versions[j] != capi::EndVersion; ++j) {
             if (versions[j] == capi::NoVersion)
