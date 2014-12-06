@@ -95,8 +95,7 @@ enum {
 #define CAPI_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
     R api::name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
-        static bool api_dll_not_initialized = true; \
-        assert(dll && api_dll_not_initialized); \
+        assert(dll && dll->isLoaded()); \
         return dll->name ARG_V; \
     }
 // nested class can not call non-static members outside the class, so hack the address here
@@ -194,17 +193,6 @@ public:
 private:
     DLL m_lib;
 };
-
-template<typename T> struct IsVoid { enum { value = 0};};
-template<> struct IsVoid<void> { enum { value = 1}; };
-template<typename T> struct Default { static const T value = T();};
-template<> struct Default<void> { static const int value = 0;};
-template<typename T> struct Default<T*> { static T* value;};
-template<typename T> T* Default<T*>::value = 0;
-template<typename T> struct Default<T&> { static T& value;};
-template<typename T> T& Default<T&>::value = Default<T>::value; //int*&, int&&
-//static const int value = 0; //static const void* value = 0: invalid in-class initialization of static data member of non-integral type 'const void*'
-template<> struct Default<void*> { enum { value = 0};};
 } //namespace internal
 } //namespace capi
 
