@@ -1,3 +1,4 @@
+QT = core
 TEMPLATE = app
 CONFIG -= app_bundle
 SOURCES += \

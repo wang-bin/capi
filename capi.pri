@@ -4,5 +4,4 @@ CONFIG *= capi
   QMAKE_CXXFLAGS += -Wno-invalid-offsetof
 }
 INCLUDEPATH += $$PWD
-SOURCES += $$PWD/capi.cpp
 HEADERS += $$PWD/capi.h

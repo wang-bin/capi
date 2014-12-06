@@ -20,6 +20,7 @@
 
 #include "zlib_api.h"
 #include "capi.h"
+#include <QtCore/QLibrary>
 
 namespace zlib {
 static const char* zlib[] = {
@@ -31,18 +32,14 @@ static const char* zlib[] = {
     NULL
 };
 
-CAPI_BEGIN_DLL(zlib)
+CAPI_BEGIN_DLL(zlib, QLibrary)
 CAPI_DEFINE_RESOLVER(0, const char*, zlibVersion)
 CAPI_DEFINE_RESOLVER(0, uLong, zlibCompileFlags)
 CAPI_END_DLL()
-
-api::api() : dll(new api_dll()) {
-    qDebug("capi::version: %s build %s", capi::version::name, capi::version::build());
-}
-api::~api() { delete dll;}
-bool api::loaded() const { return dll->isLoaded();}
-
 CAPI_DEFINE(0, const char*, zlibVersion)
 CAPI_DEFINE(0, uLong, zlibCompileFlags)
 
+api::api() : dll(new api_dll()) {}
+api::~api() { delete dll;}
+bool api::loaded() const { return dll->isLoaded();}
 } //namespace zlib
