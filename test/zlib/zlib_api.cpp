@@ -24,15 +24,15 @@
 
 namespace zlib {
 static const char* zlib[] = {
-#ifdef __WIN32
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
     "zlib",
 #else
     "z",
 #endif
     NULL
 };
-
-CAPI_BEGIN_DLL(zlib, QLibrary)
+static const int versions[] = { capi::NoVersion, 1, 0, capi::EndVersion };
+CAPI_BEGIN_DLL_VER(zlib, versions, QLibrary)
 CAPI_DEFINE_RESOLVER(0, const char*, zlibVersion)
 CAPI_DEFINE_RESOLVER(0, uLong, zlibCompileFlags)
 CAPI_END_DLL()

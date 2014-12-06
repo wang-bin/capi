@@ -21,7 +21,9 @@
 #ifndef CAPI_H
 #define CAPI_H
 
+#include <cstddef> //ptrdiff_t
 #include <cstdio>
+#include <cassert>
 
 namespace capi {
 namespace version {
@@ -35,7 +37,6 @@ namespace version {
     // DO NOT use macro here because it's included outside, the "build" will change
     //CAPI_EXPORT const char* build(); //header only because of template, so build() is useless
 } //namespace version
-
 // set lib name with version
 enum {
     NoVersion = -1,
@@ -46,7 +47,7 @@ enum {
 /*!
   * compiler may not support init list {a, b, c}
   * static const char* zlib[] = {
-  * #ifdef __WIN32
+  * #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
   *   "zlib",
   * #else
   *   "z",
@@ -60,8 +61,8 @@ enum {
 /// bool load(); bool unload(); bool isLoaded() const;
 /// void* resolve(const char* symbol);
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
-    class api_dll : public capi::dll_helper<DLL_CLASS> { \
-    public: api_dll() : capi::dll_helper<DLL_CLASS>(names) { CAPI_DBG_RESOLVE("dll symbols resolved...");}
+    class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
+    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
 /*!
   also defines possible library versions to be use. capi::NoVersion means no version suffix is used,
   e.g. libz.so. Versions array MUST be end with capi::EndVersion;
@@ -71,8 +72,8 @@ enum {
   ...
  */
 #define CAPI_BEGIN_DLL_VER(names, versions, DLL_CLASS) \
-    class api_dll : public capi::dll_helper<DLL_CLASS> { \
-    public: api_dll() : capi::dll_helper<DLL_CLASS>(names, versions) { CAPI_DBG_RESOLVE("dll symbols resolved...");}
+    class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
+    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names, versions) { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
 
 #define CAPI_END_DLL() };
 
@@ -84,12 +85,9 @@ enum {
  * ...: api arguments with only types
  * The symbol of the api is "name". Otherwise, use CAPI_DEFINEN instead.
  */
-#define CAPI_DEFINE(N, R, name, ...) \
-    EXPAND(CAPI_DEFINE##N(R, name, __VA_ARGS__))
-#define CAPI_DEFINE_RESOLVER(N, R, name, ...) \
-    EXPAND(CAPI_DEFINE_RESOLVER##N(R, name, name, __VA_ARGS__))
-#define CAPI_DEFINE_M_RESOLVER(N, R, M, name, ...) \
-    EXPAND(CAPI_DEFINE_M_RESOLVER##N(R, M, name, name, __VA_ARGS__))
+#define CAPI_DEFINE(N, R, name, ...) EXPAND(CAPI_DEFINE##N(R, name, ##__VA_ARGS__))
+#define CAPI_DEFINE_RESOLVER(N, R, name, ...) EXPAND(CAPI_DEFINE_RESOLVER##N(R, name, name, ##__VA_ARGS__))
+#define CAPI_DEFINE_M_RESOLVER(N, R, M, name, ...) EXPAND(CAPI_DEFINE_M_RESOLVER##N(R, M, name, name, ##__VA_ARGS__))
 //EXPAND(CAPI_DEFINE##N(R, name, #name, __VA_ARGS__))
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,7 +95,8 @@ enum {
 #define CAPI_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
     R api::name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
-        Q_ASSERT_X(dll, CAPI_FUNC_INFO, "class api_dll not initialized"); \
+        static bool api_dll_not_initialized = true; \
+        assert(dll && api_dll_not_initialized); \
         return dll->name ARG_V; \
     }
 // nested class can not call non-static members outside the class, so hack the address here
@@ -109,27 +108,67 @@ enum {
     private: \
         struct name##_resolver_t { \
             name##_resolver_t() { \
-                const qptrdiff diff = qptrdiff(&((api_dll*)0)->name##_resolver) - qptrdiff(&((api_dll*)0)->name); \
-                name##_t *p = (name##_t*)((quint8*)this - diff); \
-                api_dll* dll = (api_dll*)((quint8*)this - ((qptrdiff)(&((api_dll*)0)->name##_resolver))); \
+                const ptrdiff_t diff = ptrdiff_t(&((api_dll*)0)->name##_resolver) - ptrdiff_t(&((api_dll*)0)->name); \
+                name##_t *p = (name##_t*)((char*)this - diff); \
+                api_dll* dll = (api_dll*)((char*)this - ((ptrdiff_t)(&((api_dll*)0)->name##_resolver))); \
                 if (!dll->isLoaded()) { \
                     CAPI_WARN_LOAD("dll not loaded"); \
                     *p = 0; \
                     return; \
                 } \
                 *p = (name##_t)dll->resolve(#sym); \
-                if (*p) CAPI_DBG_RESOLVE("dll::" #name ": @%p", *p); \
-                else CAPI_WARN_RESOLVE("capi resolve error '" #name "'"); \
+                if (*p) { CAPI_DBG_RESOLVE("dll::" #name ": @%p", *p); } \
+                else { CAPI_WARN_RESOLVE("capi resolve error '" #name "'"); } \
             } \
         } name##_resolver;
 
+#if defined(__GNUC__)
+#  define CAPI_FUNC_INFO __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#  define CAPI_FUNC_INFO __FUNCSIG__
+#else
+#  define CAPI_FUNC_INFO __FUNCTION__
+#endif
+#ifdef DEBUG
+#define DEBUG_LOAD
+#define DEBUG_RESOLVE
+#define DEBUG_CALL
+#endif //DEBUG
+#if defined(DEBUG) || defined(DEBUG_LOAD) || defined(DEBUG_RESOLVE) || defined(DEBUG_CALL)
+#define CAPI_LOG(STDWHERE, fmt, ...) do {fprintf(STDWHERE, "[%s] %s@%d: " fmt "\n", __FILE__, CAPI_FUNC_INFO, __LINE__, ##__VA_ARGS__); fflush(0);} while(0);
+#else
+#define CAPI_LOG(...)
+#endif //DEBUG
+#ifdef DEBUG_LOAD
+#define CAPI_DBG_LOAD(...) EXPAND(CAPI_LOG(stdout, ##__VA_ARGS__))
+#define CAPI_WARN_LOAD(...) EXPAND(CAPI_LOG(stderr, ##__VA_ARGS__))
+#else
+#define CAPI_DBG_LOAD(...)
+#define CAPI_WARN_LOAD(...)
+#endif //DEBUG_LOAD
+#ifdef DEBUG_RESOLVE
+#define CAPI_DBG_RESOLVE(...) EXPAND(CAPI_LOG(stdout, ##__VA_ARGS__))
+#define CAPI_WARN_RESOLVE(...) EXPAND(CAPI_LOG(stderr, ##__VA_ARGS__))
+#else
+#define CAPI_DBG_RESOLVE(...)
+#define CAPI_WARN_RESOLVE(...)
+#endif //DEBUG_RESOLVE
+#ifdef DEBUG_CALL
+#define CAPI_DBG_CALL(...) EXPAND(CAPI_LOG(stdout, ##__VA_ARGS__))
+#define CAPI_WARN_CALL(...) EXPAND(CAPI_LOG(stderr, ##__VA_ARGS__))
+#else
+#define CAPI_DBG_CALL(...)
+#define CAPI_WARN_CALL(...)
+#endif //DEBUG_CALL
+//fully expand. used by VC. VC will not expand __VA_ARGS__ but treats it as 1 parameter
+#define EXPAND(expr) expr
 namespace capi {
-/*
- * base ctor dll_helper("name")=>derived members in decl order(resolvers)=>derived ctor
- */
+namespace internal {
+// base ctor dll_helper("name")=>derived members in decl order(resolvers)=>derived ctor
+static const int kDefaultVersions[] = {capi::NoVersion, capi::EndVersion};
 template <class DLL> class dll_helper { //no CAPI_EXPORT required
 public:
-    dll_helper(const char* names[], const int versions[] = (const int[]){capi::NoVersion, capi::EndVersion}) {
+    dll_helper(const char* names[], const int versions[] = kDefaultVersions) {
         static bool is_1st = true;
         if (is_1st) {
             is_1st = false;
@@ -142,10 +181,10 @@ public:
                 else
                     m_lib.setFileNameAndVersion(names[i], versions[j]);
                 if (m_lib.load()) {
-                    printf("capi loaded {library name: %s, version: %d}\n", names[i], versions[j]);
-                    break;
+                    CAPI_DBG_LOAD("capi loaded {library name: %s, version: %d}", names[i], versions[j]);
+                    return;
                 }
-                fprintf(stderr, "capi can not load {library name: %s, version %d}\n", names[i], versions[j]);
+                CAPI_WARN_LOAD("capi can not load {library name: %s, version %d}", names[i], versions[j]);
             }
         }
     }
@@ -166,49 +205,12 @@ template<typename T> struct Default<T&> { static T& value;};
 template<typename T> T& Default<T&>::value = Default<T>::value; //int*&, int&&
 //static const int value = 0; //static const void* value = 0: invalid in-class initialization of static data member of non-integral type 'const void*'
 template<> struct Default<void*> { enum { value = 0};};
+} //namespace internal
 } //namespace capi
-
 
 #if defined(_MSC_VER)
 #pragma warning(disable:4098) //vc return void
 #endif //_MSC_VER
-#if defined(__GNUC__)
-#  define CAPI_FUNC_INFO __PRETTY_FUNCTION__
-#elif defined(_MSC_VER)
-#  define CAPI_FUNC_INFO __FUNCSIG__
-#else
-#  define CAPI_FUNC_INFO __FUNCTION__
-#endif
-#ifdef DEBUG
-#define CAPI_LOG(STDWHERE, fmt, ...) do {fprintf(STDWHERE, "[%s] %s@%d: " fmt "\n", __FILE__, CAPI_FUNC_INFO, __LINE__, ##__VA_ARGS__); fflush(0);} while(0)
-#define DEBUG_LOAD
-#define DEBUG_RESOLVE
-#define DEBUG_CALL
-#else
-#define CAPI_LOG(...)
-#endif //DEBUG
-#ifdef DEBUG_LOAD
-#define CAPI_DBG_LOAD(...) CAPI_LOG(stdout, ##__VA_ARGS__)
-#define CAPI_WARN_LOAD(...) CAPI_LOG(stderr, ##__VA_ARGS__)
-#else
-#define CAPI_DBG_LOAD(...)
-#define CAPI_WARN_LOAD(...)
-#endif //DEBUG_LOAD
-#ifdef DEBUG_RESOLVE
-#define CAPI_DBG_RESOLVE(...) CAPI_LOG(stdout, ##__VA_ARGS__)
-#define CAPI_WARN_RESOLVE(...) CAPI_LOG(stderr, ##__VA_ARGS__)
-#else
-#define CAPI_DBG_RESOLVE(...)
-#define CAPI_WARN_RESOLVE(...)
-#endif //DEBUG_RESOLVE
-#ifdef DEBUG_CALL
-#define CAPI_DBG_CALL(...) CAPI_LOG(stdout, ##__VA_ARGS__)
-#define CAPI_WARN_CALL(...) CAPI_LOG(stderr, ##__VA_ARGS__)
-#else
-#define CAPI_DBG_CALL(...)
-#define CAPI_WARN_CALL(...)
-#endif //DEBUG_CALL
-
 /*!
  * used by .cpp to define the api
  *  e.g. CAPI_DEFINE3(cl_int, clGetPlatformIDs, "clGetPlatformIDs", cl_uint, cl_platform_id*, cl_uint*)
@@ -259,6 +261,5 @@ template<> struct Default<void*> { enum { value = 0};};
 #define CAPI_DEFINE_M_RESOLVER11(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11))
 #define CAPI_DEFINE_M_RESOLVER12(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12))
 #define CAPI_DEFINE_M_RESOLVER13(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12, P13 p13), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13))
-//fully expand. used by VC. VC will not expand __VA_ARGS__ but treats it as 1 parameter
-#define EXPAND(expr) expr
+
 #endif // CAPI_H

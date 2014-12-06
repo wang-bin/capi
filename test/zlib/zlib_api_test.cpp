@@ -18,25 +18,26 @@
 ******************************************************************************/
 
 #include "zlib_api.h"
-#include <QtDebug>
+#include <stdio.h>
 
 class test_zlib_api : public zlib::api {
 public:
     void test_version() {
-        qDebug("START %s", __FUNCTION__);
-        qDebug("zlib version: %s", zlibVersion());
-        qDebug("STOP %s", __FUNCTION__);
+        printf("START %s\n", __FUNCTION__);
+        printf("zlib version: %s\n", zlibVersion());
+        printf("STOP %s\n", __FUNCTION__);
     }
     void test_compileFlags() {
-        qDebug("START %s", __FUNCTION__);
-        qDebug("zlib compile flags=%lu", zlibCompileFlags());
-        qDebug("STOP %s", __FUNCTION__);
+        printf("START %s\n", __FUNCTION__);
+        printf("zlib compile flags=%lu\n", zlibCompileFlags());
+        printf("STOP %s\n", __FUNCTION__);
     }
 };
 
 int main(int, char **)
 {
     test_zlib_api tt;
+    printf("capi zlib test\n");
     tt.test_version();
     tt.test_compileFlags();
     return 0;
