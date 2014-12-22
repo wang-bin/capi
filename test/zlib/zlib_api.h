@@ -34,7 +34,7 @@ public:
     virtual ~api();
     virtual bool loaded() const;
     const char* zlibVersion();
-    uLong zlibCompileFlags();
+    const char* zError(int);
 private:
     api_dll *dll;
 };

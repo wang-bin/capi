@@ -16,8 +16,8 @@
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ******************************************************************************/
-#define DEBUG
 
+#define DEBUG
 #include "zlib_api.h"
 #include "capi.h"
 #include <QtCore/QLibrary>
@@ -33,11 +33,11 @@ static const char* zlib[] = {
 };
 static const int versions[] = { capi::NoVersion, 1, 0, capi::EndVersion };
 CAPI_BEGIN_DLL_VER(zlib, versions, QLibrary)
-CAPI_DEFINE_RESOLVER(0, const char*, zlibVersion)
-CAPI_DEFINE_RESOLVER(0, uLong, zlibCompileFlags)
+CAPI_DEFINE_RESOLVER(const char*, zlibVersion, CAPI_ARG0())
+CAPI_DEFINE_RESOLVER(const char*, zError, CAPI_ARG1(int))
 CAPI_END_DLL()
-CAPI_DEFINE(0, const char*, zlibVersion)
-CAPI_DEFINE(0, uLong, zlibCompileFlags)
+CAPI_DEFINE(const char*, zlibVersion, CAPI_ARG0())
+CAPI_DEFINE(const char*, zError, CAPI_ARG1(int))
 
 api::api() : dll(new api_dll()) {}
 api::~api() { delete dll;}

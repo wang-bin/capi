@@ -27,9 +27,9 @@ public:
         printf("zlib version: %s\n", zlibVersion());
         printf("STOP %s\n", __FUNCTION__);
     }
-    void test_compileFlags() {
+    void test_zError(int e) {
         printf("START %s\n", __FUNCTION__);
-        printf("zlib compile flags=%lu\n", zlibCompileFlags());
+        printf("zlib error: %d => %s\n", e, zError(e));
         printf("STOP %s\n", __FUNCTION__);
     }
 };
@@ -39,7 +39,7 @@ int main(int, char **)
     test_zlib_api tt;
     printf("capi zlib test\n");
     tt.test_version();
-    tt.test_compileFlags();
+    tt.test_zError(1);
     return 0;
 }
 

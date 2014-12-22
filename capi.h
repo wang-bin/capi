@@ -17,7 +17,7 @@
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ******************************************************************************/
-
+// no class based implemention: https://github.com/wang-bin/dllapi . limitation: can not reload library
 #ifndef CAPI_H
 #define CAPI_H
 
@@ -77,17 +77,21 @@ enum {
 
 #define CAPI_END_DLL() };
 
-//e.g. CAPI_DEFINE(3, cl_int, clGetPlatformIDs, cl_uint, cl_platform_id*, cl_uint*)
 /*!
  * N: number of arguments
  * R: return type
  * name: api name
- * ...: api arguments with only types
- * The symbol of the api is "name". Otherwise, use CAPI_DEFINEN instead.
+ * ...: api arguments with only types, wrapped by CAPI_ARGn, n=0,1,2,...13
+ * The symbol of the api is "name". Otherwise, use CAPI_DEFINE instead.
+ * example:
+ * 1. const char* zlibVersion()
+ *    CAPI_DEFINE(const char* zlibVersion, CAPI_ARG0())
+ * 2. const char* zError(int) // get error string from zlib error code
+ *    CAPI_DEFINE(const char*, zError, CAPI_ARG1(int))
  */
-#define CAPI_DEFINE(N, R, name, ...) EXPAND(CAPI_DEFINE##N(R, name, ##__VA_ARGS__))
-#define CAPI_DEFINE_RESOLVER(N, R, name, ...) EXPAND(CAPI_DEFINE_RESOLVER##N(R, name, name, ##__VA_ARGS__))
-#define CAPI_DEFINE_M_RESOLVER(N, R, M, name, ...) EXPAND(CAPI_DEFINE_M_RESOLVER##N(R, M, name, name, ##__VA_ARGS__))
+#define CAPI_DEFINE(R, name, ...) CAPI_DEFINE_X(R, name, __VA_ARGS__) /* not ##__VA_ARGS__ !*/
+#define CAPI_DEFINE_RESOLVER(R, name, ...) CAPI_DEFINE_RESOLVER_X(R, name, name, __VA_ARGS__)
+#define CAPI_DEFINE_M_RESOLVER(R, M, name, ...) CAPI_DEFINE_M_RESOLVER_X(R, M, name, name, __VA_ARGS__)
 //EXPAND(CAPI_DEFINE##N(R, name, #name, __VA_ARGS__))
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -160,12 +164,13 @@ enum {
 #define CAPI_WARN_CALL(...)
 #endif //DEBUG_CALL
 //fully expand. used by VC. VC will not expand __VA_ARGS__ but treats it as 1 parameter
-#define EXPAND(expr) expr
+#define EXPAND(expr) expr //TODO: rename CAPI_EXPAND
 namespace capi {
 namespace internal {
 // base ctor dll_helper("name")=>derived members in decl order(resolvers)=>derived ctor
 static const int kDefaultVersions[] = {capi::NoVersion, capi::EndVersion};
 template <class DLL> class dll_helper { //no CAPI_EXPORT required
+    DLL m_lib;
 public:
     dll_helper(const char* names[], const int versions[] = kDefaultVersions) {
         static bool is_1st = true;
@@ -190,8 +195,6 @@ public:
     virtual ~dll_helper() { m_lib.unload();}
     bool isLoaded() const { return m_lib.isLoaded(); }
     void* resolve(const char *symbol) { return (void*)m_lib.resolve(symbol);}
-private:
-    DLL m_lib;
 };
 } //namespace internal
 } //namespace capi
@@ -201,53 +204,28 @@ private:
 #endif //_MSC_VER
 /*!
  * used by .cpp to define the api
- *  e.g. CAPI_DEFINE3(cl_int, clGetPlatformIDs, "clGetPlatformIDs", cl_uint, cl_platform_id*, cl_uint*)
+ *  e.g. CAPI_DEFINE(cl_int, clGetPlatformIDs, "clGetPlatformIDs", CAPI_ARG3(cl_uint, cl_platform_id*, cl_uint*))
  * sym: symbol of the api in library.
  */
-#define CAPI_DEFINE0(R, name, ...) CAPI_DEFINE_T_V(R, name, (), (), ())
-#define CAPI_DEFINE1(R, name, P1) CAPI_DEFINE_T_V(R, name, (P1), (P1 p1), (p1))
-#define CAPI_DEFINE2(R, name, P1, P2) CAPI_DEFINE_T_V(R, name, (P1, P2), (P1 p1, P2 p2), (p1, p2))
-#define CAPI_DEFINE3(R, name, P1, P2, P3) CAPI_DEFINE_T_V(R, name, (P1, P2, P3), (P1 p1, P2 p2, P3 p3), (p1, p2, p3))
-#define CAPI_DEFINE4(R, name, P1, P2, P3, P4) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4), (P1 p1, P2 p2, P3 p3, P4 p4), (p1, p2, p3, p4))
-#define CAPI_DEFINE5(R, name, P1, P2, P3, P4, P5) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4, P5), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5), (p1, p2, p3, p4, p5))
-#define CAPI_DEFINE6(R, name, P1, P2, P3, P4, P5, P6) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4, P5, P6), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6), (p1, p2, p3, p4, p5, p6))
-#define CAPI_DEFINE7(R, name, P1, P2, P3, P4, P5, P6, P7) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4, P5, P6, P7), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7), (p1, p2, p3, p4, p5, p6, p7))
-#define CAPI_DEFINE8(R, name, P1, P2, P3, P4, P5, P6, P7, P8) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4, P5, P6, P7, P8), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8), (p1, p2, p3, p4, p5, p6, p7, p8))
-#define CAPI_DEFINE9(R, name, P1, P2, P3, P4, P5, P6, P7, P8, P9) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4, P5, P6, P7, P8, P9), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9), (p1, p2, p3, p4, p5, p6, p7, p8, p9))
-#define CAPI_DEFINE10(R, name, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10))
-#define CAPI_DEFINE11(R, name, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11))
-#define CAPI_DEFINE12(R, name, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12))
-#define CAPI_DEFINE13(R, name, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13) CAPI_DEFINE_T_V(R, name, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12, P13 p13), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13))
+#define CAPI_DEFINE_X(R, name, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V)
 /* declare and define the symbol resolvers*/
 #define EMPTY_LINKAGE
-#define CAPI_DEFINE_RESOLVER0(R, name, sym, ...) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (), (), ())
-#define CAPI_DEFINE_RESOLVER1(R, name, sym, P1) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1), (P1 p1), (p1))
-#define CAPI_DEFINE_RESOLVER2(R, name, sym, P1, P2) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2), (P1 p1, P2 p2), (p1, p2))
-#define CAPI_DEFINE_RESOLVER3(R, name, sym, P1, P2, P3) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3), (P1 p1, P2 p2, P3 p3), (p1, p2, p3))
-#define CAPI_DEFINE_RESOLVER4(R, name, sym, P1, P2, P3, P4) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4), (P1 p1, P2 p2, P3 p3, P4 p4), (p1, p2, p3, p4))
-#define CAPI_DEFINE_RESOLVER5(R, name, sym, P1, P2, P3, P4, P5) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4, P5), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5), (p1, p2, p3, p4, p5))
-#define CAPI_DEFINE_RESOLVER6(R, name, sym, P1, P2, P3, P4, P5, P6) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4, P5, P6), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6), (p1, p2, p3, p4, p5, p6))
-#define CAPI_DEFINE_RESOLVER7(R, name, sym, P1, P2, P3, P4, P5, P6, P7) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4, P5, P6, P7), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7), (p1, p2, p3, p4, p5, p6, p7))
-#define CAPI_DEFINE_RESOLVER8(R, name, sym, P1, P2, P3, P4, P5, P6, P7, P8) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8), (p1, p2, p3, p4, p5, p6, p7, p8))
-#define CAPI_DEFINE_RESOLVER9(R, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9), (p1, p2, p3, p4, p5, p6, p7, p8, p9))
-#define CAPI_DEFINE_RESOLVER10(R, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10))
-#define CAPI_DEFINE_RESOLVER11(R, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11))
-#define CAPI_DEFINE_RESOLVER12(R, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12))
-#define CAPI_DEFINE_RESOLVER13(R, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12, P13 p13), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13))
+#define CAPI_DEFINE_RESOLVER_X(R, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, ARG_T, ARG_T_V, ARG_V)
 // api with linkage modifier
-#define CAPI_DEFINE_M_RESOLVER0(R, M, name, sym, ...) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (), (), ())
-#define CAPI_DEFINE_M_RESOLVER1(R, M, name, sym, P1) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1), (P1 p1), (p1))
-#define CAPI_DEFINE_M_RESOLVER2(R, M, name, sym, P1, P2) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2), (P1 p1, P2 p2), (p1, p2))
-#define CAPI_DEFINE_M_RESOLVER3(R, M, name, sym, P1, P2, P3) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3), (P1 p1, P2 p2, P3 p3), (p1, p2, p3))
-#define CAPI_DEFINE_M_RESOLVER4(R, M, name, sym, P1, P2, P3, P4) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4), (P1 p1, P2 p2, P3 p3, P4 p4), (p1, p2, p3, p4))
-#define CAPI_DEFINE_M_RESOLVER5(R, M, name, sym, P1, P2, P3, P4, P5) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5), (p1, p2, p3, p4, p5))
-#define CAPI_DEFINE_M_RESOLVER6(R, M, name, sym, P1, P2, P3, P4, P5, P6) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6), (p1, p2, p3, p4, p5, p6))
-#define CAPI_DEFINE_M_RESOLVER7(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7), (p1, p2, p3, p4, p5, p6, p7))
-#define CAPI_DEFINE_M_RESOLVER8(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7, P8) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8), (p1, p2, p3, p4, p5, p6, p7, p8))
-#define CAPI_DEFINE_M_RESOLVER9(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9), (p1, p2, p3, p4, p5, p6, p7, p8, p9))
-#define CAPI_DEFINE_M_RESOLVER10(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10))
-#define CAPI_DEFINE_M_RESOLVER11(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11))
-#define CAPI_DEFINE_M_RESOLVER12(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12))
-#define CAPI_DEFINE_M_RESOLVER13(R, M, name, sym, P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12, P13 p13), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13))
+#define CAPI_DEFINE_M_RESOLVER_X(R, M, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, ARG_T, ARG_T_V, ARG_V)
+#define CAPI_ARG0() (), (), ()
+#define CAPI_ARG1(P1) (P1), (P1 p1), (p1)
+#define CAPI_ARG2(P1, P2) (P1, P2), (P1 p1, P2 p2), (p1, p2)
+#define CAPI_ARG3(P1, P2, P3) (P1, P2, P3), (P1 p1, P2 p2, P3 p3), (p1, p2, p3)
+#define CAPI_ARG4(P1, P2, P3, P4) (P1, P2, P3, P4), (P1 p1, P2 p2, P3 p3, P4 p4), (p1, p2, p3, p4)
+#define CAPI_ARG5(P1, P2, P3, P4, P5) (P1, P2, P3, P4, P5), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5), (p1, p2, p3, p4, p5)
+#define CAPI_ARG6(P1, P2, P3, P4, P5, P6) (P1, P2, P3, P4, P5, P6), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6), (p1, p2, p3, p4, p5, p6)
+#define CAPI_ARG7(P1, P2, P3, P4, P5, P6, P7) (P1, P2, P3, P4, P5, P6, P7), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7), (p1, p2, p3, p4, p5, p6, p7)
+#define CAPI_ARG8(P1, P2, P3, P4, P5, P6, P7, P8) (P1, P2, P3, P4, P5, P6, P7, P8), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8), (p1, p2, p3, p4, p5, p6, p7, p8)
+#define CAPI_ARG9(P1, P2, P3, P4, P5, P6, P7, P8, P9) (P1, P2, P3, P4, P5, P6, P7, P8, P9), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9), (p1, p2, p3, p4, p5, p6, p7, p8, p9)
+#define CAPI_ARG10(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10) (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10)
+#define CAPI_ARG11(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11) (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11)
+#define CAPI_ARG12(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12) (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12)
+#define CAPI_ARG13(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13) (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13), (P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12, P13 p13), (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13)
 
 #endif // CAPI_H
