@@ -13,13 +13,13 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
     class api_dll; //must use this name
     class api //must use this name
     {
+        api_dll *dll;
     public:
         api();
         virtual ~api();
         const char* zlibVersion();
-        uLong zlibCompileFlags();
-    private:
-        api_dll *dll;
+        const char* zError(int);
+        // and more functions
     };
     } //namespace zlib
 
@@ -29,16 +29,19 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
 
     #include "zlib_api.h"
     #include "capi.h"
+    #include <QLibrary> // need a library loader/resolver class whose function names like QLibrary
     namespace zlib {
     static const char* zlib[] = { "zlib", "z", NULL}; //zlib.dll, libz.so, libz.dylib
-    CAPI_BEGIN_DLL(zlib)
-    CAPI_DEFINE_RESOLVER(0, const char*, zlibVersion)
-    CAPI_DEFINE_RESOLVER(0, uLong, zlibCompileFlags)
+    CAPI_BEGIN_DLL(zlib, QLibrary)
+    CAPI_DEFINE_RESOLVER(const char*, zlibVersion, CAPI_ARG0())
+    CAPI_DEFINE_RESOLVER(const char*, zError, CAPI_ARG1(int))
+    // and more functions
     CAPI_END_DLL()
+    CAPI_DEFINE(const char*, zlibVersion, CAPI_ARG0())
+    CAPI_DEFINE(uLong, zError, CAPI_ARG1(int))
     api::api() : dll(new api_dll()) {}
     api::~api() { delete dll;}
-    CAPI_DEFINE(0, const char*, zlibVersion)
-    CAPI_DEFINE(0, uLong, zlibCompileFlags)
+    // and more functions
     } //namespace zlib
 
 >test.cpp (dynamically loaded symbols):
@@ -47,15 +50,17 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
     class test_zlib_api : public zlib::api {
     public:
         void test_version() {
-            qDebug("START %s", __FUNCTION__);
-            qDebug("zlib version: %s", zlibVersion());
-            qDebug("STOP %s", __FUNCTION__);
+            printf("zlib version: %s\n", zlibVersion());
+        }
+        void test_error(int errorCode) {
+            printf("zlib error: %d => %s\n", errorCode, zError(errorCode));
         }
     };
     int main(int, char **)
     {
         test_zlib_api tt;
         tt.test_version();
+        tt.test_error(1);
         return 0;
     }
 
