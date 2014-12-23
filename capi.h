@@ -202,6 +202,11 @@ public:
 #if defined(_MSC_VER)
 #pragma warning(disable:4098) //vc return void
 #endif //_MSC_VER
+#ifdef __GNUC__
+//gcc: ((T*)0)->member
+//no #pragma GCC diagnostic push/pop around because code is defined as a macro
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
 /*!
  * used by .cpp to define the api
  *  e.g. CAPI_DEFINE(cl_int, clGetPlatformIDs, "clGetPlatformIDs", CAPI_ARG3(cl_uint, cl_platform_id*, cl_uint*))
