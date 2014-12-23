@@ -89,9 +89,9 @@ enum {
  * 2. const char* zError(int) // get error string from zlib error code
  *    CAPI_DEFINE(const char*, zError, CAPI_ARG1(int))
  */
-#define CAPI_DEFINE(R, name, ...) CAPI_DEFINE_X(R, name, __VA_ARGS__) /* not ##__VA_ARGS__ !*/
-#define CAPI_DEFINE_RESOLVER(R, name, ...) CAPI_DEFINE_RESOLVER_X(R, name, name, __VA_ARGS__)
-#define CAPI_DEFINE_M_RESOLVER(R, M, name, ...) CAPI_DEFINE_M_RESOLVER_X(R, M, name, name, __VA_ARGS__)
+#define CAPI_DEFINE(R, name, ...) EXPAND(CAPI_DEFINE_X(R, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
+#define CAPI_DEFINE_RESOLVER(R, name, ...) EXPAND(CAPI_DEFINE_RESOLVER_X(R, name, name, __VA_ARGS__))
+#define CAPI_DEFINE_M_RESOLVER(R, M, name, ...) EXPAND(CAPI_DEFINE_M_RESOLVER_X(R, M, name, name, __VA_ARGS__))
 //EXPAND(CAPI_DEFINE##N(R, name, #name, __VA_ARGS__))
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
