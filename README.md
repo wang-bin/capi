@@ -1,6 +1,6 @@
 # capi
 
-This library helps you use C api in a shared library by dynamically loading instead of linking to it with minimal efforts.
+This header only library helps you use C api in a shared library by dynamically loading instead of linking to it with minimal efforts.
 
 Here is a simple zlib example, if you want use zlib functions, inherits class zlib::api.
 
@@ -44,7 +44,7 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
     // and more functions
     } //namespace zlib
 
->test.cpp (dynamically loaded symbols):
+>test.cpp (dynamically loaded symbols, not link to zlib):
 
     #include "zlib_api.h"
     class test_zlib_api : public zlib::api {
