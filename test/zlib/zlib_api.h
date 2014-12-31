@@ -38,18 +38,6 @@ public:
 private:
     api_dll *dll;
 };
-class api_dll2;
-class api2
-{
-public:
-    api2();
-    virtual ~api2();
-    virtual bool loaded() const;
-    const char* zlibVersion();
-    const char* zError(int);
-private:
-    api_dll2 *dll;
-};
 } //namespace zlib
 
 

@@ -26,12 +26,20 @@
 #include <cassert>
 #include <string.h>
 
+#define CAPI_IS(X) (defined CAPI_IS_##X && CAPI_IS_##X)
+/*!
+ * you can define CAPI_IS_LAZY_RESOLVE 0 before including capi.h. then all symbols will be resolved in constructor.
+ * default resolving a symbol at it's first call
+ */
+#ifndef CAPI_IS_LAZY_RESOLVE
+#define CAPI_IS_LAZY_RESOLVE 1
+#endif
 namespace capi {
 namespace version {
     enum {
         Major = 0,
-        Minor = 0,
-        Patch = 3,
+        Minor = 1,
+        Patch = 0,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -61,14 +69,16 @@ enum {
 /// void setFileName(const char*); setFileNameAndVersion(const char* name, int ver);
 /// bool load(); bool unload(); bool isLoaded() const;
 /// void* resolve(const char* symbol);
+#if CAPI_IS(LAZY_RESOLVE)
+#define CAPI_BEGIN_DLL(names, DLL_CLASS) \
+    class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
+    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) { memset(api, 0, sizeof(api));} \
+    typedef struct {
+#else
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
     class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
     public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
-#define CAPI_BEGIN_DLL2(names, DLL_CLASS) \
-    class api_dll2 : public capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll2() : capi::internal::dll_helper<DLL_CLASS>(names) { memset(api, 0, sizeof(api));} \
-    typedef struct {
-
+#endif
 /*!
   also defines possible library versions to be use. capi::NoVersion means no version suffix is used,
   e.g. libz.so. Versions array MUST be end with capi::EndVersion;
@@ -77,20 +87,21 @@ enum {
   CAPI_BEGIN_DLL_VER(zlib, ver)
   ...
  */
+#if CAPI_IS(LAZY_RESOLVE)
+#define CAPI_BEGIN_DLL_VER(names, versions, DLL_CLASS) \
+    class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
+    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names, versions) { ::memset(&api, 0, sizeof(api));} \
+    typedef struct {
+
+#define CAPI_END_DLL() } api_t; api_t api; };
+#else
 #define CAPI_BEGIN_DLL_VER(names, versions, DLL_CLASS) \
     class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
     public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names, versions) { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
 
-#define CAPI_BEGIN_DLL_VER2(names, versions, DLL_CLASS) \
-    class api_dll2 : public capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll2() : capi::internal::dll_helper<DLL_CLASS>(names, versions) { ::memset(&api, 0, sizeof(api));} \
-    typedef struct {
-
 #define CAPI_END_DLL() };
-#define CAPI_END_DLL2() \
-    } api_t; \
-    api_t api; \
-};
+#endif
+
 
 /*!
  * N: number of arguments
@@ -104,14 +115,16 @@ enum {
  * 2. const char* zError(int) // get error string from zlib error code
  *    CAPI_DEFINE(const char*, zError, CAPI_ARG1(int))
  */
-#define CAPI_DEFINE(R, name, ...) EXPAND(CAPI_DEFINE_X(R, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
-#define CAPI_DEFINE_RESOLVER(R, name, ...) EXPAND(CAPI_DEFINE_RESOLVER_X(R, name, name, __VA_ARGS__))
-#define CAPI_DEFINE_M_RESOLVER(R, M, name, ...) EXPAND(CAPI_DEFINE_M_RESOLVER_X(R, M, name, name, __VA_ARGS__))
 
-#define CAPI_DEFINE2(R, name, ...) EXPAND(CAPI_DEFINE2_X(R, name, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
+#if CAPI_IS(LAZY_RESOLVE)
+#define CAPI_DEFINE(R, name, ...) EXPAND(CAPI_DEFINE2_X(R, name, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
 #define CAPI_DEFINE_ENTRY(R, name, ...) EXPAND(CAPI_DEFINE_ENTRY_X(R, name, name, __VA_ARGS__))
 #define CAPI_DEFINE_M_ENTRY(R, M, name, ...) EXPAND(CAPI_DEFINE_M_ENTRY_X(R, M, name, name, __VA_ARGS__))
-
+#else
+#define CAPI_DEFINE(R, name, ...) EXPAND(CAPI_DEFINE_X(R, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
+#define CAPI_DEFINE_ENTRY(R, name, ...) EXPAND(CAPI_DEFINE_RESOLVER_X(R, name, name, __VA_ARGS__))
+#define CAPI_DEFINE_M_ENTRY(R, M, name, ...) EXPAND(CAPI_DEFINE_M_RESOLVER_X(R, M, name, name, __VA_ARGS__))
+#endif
 //EXPAND(CAPI_DEFINE##N(R, name, #name, __VA_ARGS__))
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,11 +136,11 @@ enum {
         return dll->name ARG_V; \
     }
 #define CAPI_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V) \
-    R api2::name ARG_T_V { \
+    R api::name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
         assert(dll && dll->isLoaded()); \
         if (!dll->api.name) { \
-            dll->api.name = (api_dll2::api_t::name##_t)dll->resolve(#sym); \
+            dll->api.name = (api_dll::api_t::name##_t)dll->resolve(#sym); \
             CAPI_DBG_RESOLVE("dll::api_t::" #name ": @%p", dll->api.name); \
         } \
         assert(dll->api.name); \

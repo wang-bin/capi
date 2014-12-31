@@ -33,8 +33,8 @@ static const char* zlib[] = {
 };
 static const int versions[] = { capi::NoVersion, 1, 0, capi::EndVersion };
 CAPI_BEGIN_DLL_VER(zlib, versions, QLibrary)
-CAPI_DEFINE_RESOLVER(const char*, zlibVersion, CAPI_ARG0())
-CAPI_DEFINE_RESOLVER(const char*, zError, CAPI_ARG1(int))
+CAPI_DEFINE_ENTRY(const char*, zlibVersion, CAPI_ARG0())
+CAPI_DEFINE_ENTRY(const char*, zError, CAPI_ARG1(int))
 CAPI_END_DLL()
 CAPI_DEFINE(const char*, zlibVersion, CAPI_ARG0())
 CAPI_DEFINE(const char*, zError, CAPI_ARG1(int))
@@ -43,14 +43,4 @@ api::api() : dll(new api_dll()) {}
 api::~api() { delete dll;}
 bool api::loaded() const { return dll->isLoaded();}
 
-CAPI_BEGIN_DLL_VER2(zlib, versions, QLibrary)
-CAPI_DEFINE_ENTRY(const char*, zlibVersion, CAPI_ARG0())
-CAPI_DEFINE_ENTRY(const char*, zError, CAPI_ARG1(int))
-CAPI_END_DLL2()
-CAPI_DEFINE2(const char*, zlibVersion, CAPI_ARG0())
-CAPI_DEFINE2(const char*, zError, CAPI_ARG1(int))
-
-api2::api2() : dll(new api_dll2()) {}
-api2::~api2() { delete dll;}
-bool api2::loaded() const { return dll->isLoaded();}
 } //namespace zlib

@@ -20,17 +20,13 @@
 #include "zlib_api.h"
 #include <stdio.h>
 
-class test_zlib_api : public zlib::api2 {
+class test_zlib_api : public zlib::api {
 public:
     void test_version() {
-        printf("START %s\n", __FUNCTION__);
         printf("zlib version: %s\n", zlibVersion());
-        printf("STOP %s\n", __FUNCTION__);
     }
     void test_zError(int e) {
-        printf("START %s\n", __FUNCTION__);
         printf("zlib error: %d => %s\n", e, zError(e));
-        printf("STOP %s\n", __FUNCTION__);
     }
 };
 
@@ -38,6 +34,8 @@ int main(int, char **)
 {
     test_zlib_api tt;
     printf("capi zlib test\n");
+    tt.test_version();
+    tt.test_version();
     tt.test_version();
     tt.test_zError(1);
     return 0;
