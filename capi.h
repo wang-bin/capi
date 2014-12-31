@@ -24,13 +24,14 @@
 #include <cstddef> //ptrdiff_t
 #include <cstdio>
 #include <cassert>
+#include <string.h>
 
 namespace capi {
 namespace version {
     enum {
         Major = 0,
         Minor = 0,
-        Patch = 2,
+        Patch = 3,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -63,6 +64,11 @@ enum {
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
     class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
     public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
+#define CAPI_BEGIN_DLL2(names, DLL_CLASS) \
+    class api_dll2 : public capi::internal::dll_helper<DLL_CLASS> { \
+    public: api_dll2() : capi::internal::dll_helper<DLL_CLASS>(names) { memset(api, 0, sizeof(api));} \
+    typedef struct {
+
 /*!
   also defines possible library versions to be use. capi::NoVersion means no version suffix is used,
   e.g. libz.so. Versions array MUST be end with capi::EndVersion;
@@ -75,7 +81,16 @@ enum {
     class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
     public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names, versions) { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
 
+#define CAPI_BEGIN_DLL_VER2(names, versions, DLL_CLASS) \
+    class api_dll2 : public capi::internal::dll_helper<DLL_CLASS> { \
+    public: api_dll2() : capi::internal::dll_helper<DLL_CLASS>(names, versions) { ::memset(&api, 0, sizeof(api));} \
+    typedef struct {
+
 #define CAPI_END_DLL() };
+#define CAPI_END_DLL2() \
+    } api_t; \
+    api_t api; \
+};
 
 /*!
  * N: number of arguments
@@ -92,6 +107,11 @@ enum {
 #define CAPI_DEFINE(R, name, ...) EXPAND(CAPI_DEFINE_X(R, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
 #define CAPI_DEFINE_RESOLVER(R, name, ...) EXPAND(CAPI_DEFINE_RESOLVER_X(R, name, name, __VA_ARGS__))
 #define CAPI_DEFINE_M_RESOLVER(R, M, name, ...) EXPAND(CAPI_DEFINE_M_RESOLVER_X(R, M, name, name, __VA_ARGS__))
+
+#define CAPI_DEFINE2(R, name, ...) EXPAND(CAPI_DEFINE2_X(R, name, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
+#define CAPI_DEFINE_ENTRY(R, name, ...) EXPAND(CAPI_DEFINE_ENTRY_X(R, name, name, __VA_ARGS__))
+#define CAPI_DEFINE_M_ENTRY(R, M, name, ...) EXPAND(CAPI_DEFINE_M_ENTRY_X(R, M, name, name, __VA_ARGS__))
+
 //EXPAND(CAPI_DEFINE##N(R, name, #name, __VA_ARGS__))
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -101,6 +121,17 @@ enum {
         CAPI_DBG_CALL(" "); \
         assert(dll && dll->isLoaded()); \
         return dll->name ARG_V; \
+    }
+#define CAPI_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V) \
+    R api2::name ARG_T_V { \
+        CAPI_DBG_CALL(" "); \
+        assert(dll && dll->isLoaded()); \
+        if (!dll->api.name) { \
+            dll->api.name = (api_dll2::api_t::name##_t)dll->resolve(#sym); \
+            CAPI_DBG_RESOLVE("dll::api_t::" #name ": @%p", dll->api.name); \
+        } \
+        assert(dll->api.name); \
+        return dll->api.name ARG_V; \
     }
 // nested class can not call non-static members outside the class, so hack the address here
 // need -Wno-invalid-offsetof
@@ -218,6 +249,11 @@ public:
 #define CAPI_DEFINE_RESOLVER_X(R, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, ARG_T, ARG_T_V, ARG_V)
 // api with linkage modifier
 #define CAPI_DEFINE_M_RESOLVER_X(R, M, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, ARG_T, ARG_T_V, ARG_V)
+
+#define CAPI_DEFINE2_X(R, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V)
+#define CAPI_DEFINE_ENTRY_X(R, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_M_ENTRY_X(R, EMPTY_LINKAGE, name, sym, ARG_T, ARG_T_V, ARG_V)
+#define CAPI_DEFINE_M_ENTRY_X(R, M, sym, name, ARG_T, ARG_T_V, ARG_V) typedef R (M *name##_t) ARG_T; name##_t name; \
+
 #define CAPI_ARG0() (), (), ()
 #define CAPI_ARG1(P1) (P1), (P1 p1), (p1)
 #define CAPI_ARG2(P1, P2) (P1, P2), (P1 p1, P2 p2), (p1, p2)

@@ -18,6 +18,7 @@
 ******************************************************************************/
 
 #include <QtCore/QLibrary>
+#include <cassert>
 // no need to include the C header if only functions declared there
 extern "C" {
 #include "zlib.h"
@@ -82,24 +83,66 @@ private:
         }
     } zlibVersion_resolver;
 public:
-    typedef uLong zlibCompileFlags_t();
-    zlibCompileFlags_t* zlibCompileFlags;
+    typedef const char* zError_t(int);
+    zError_t* zError;
 private:
-    class zlibCompileFlags_resolver_t {
+    class zError_resolver_t {
     public:
-        zlibCompileFlags_resolver_t() {
-            const qptrdiff diff = qptrdiff(&((zlib_dll*)0)->zlibCompileFlags_resolver) - qptrdiff(&((zlib_dll*)0)->zlibCompileFlags);
-            zlibCompileFlags_t **p = (zlibCompileFlags_t**)((quint8*)this - diff);
-            zlib_dll* dll = (zlib_dll*)((quint8*)this - ((qptrdiff)(&((zlib_dll*)0)->zlibCompileFlags_resolver)));
+        zError_resolver_t() {
+            const qptrdiff diff = qptrdiff(&((zlib_dll*)0)->zError_resolver) - qptrdiff(&((zlib_dll*)0)->zError);
+            zError_t **p = (zError_t**)((quint8*)this - diff);
+            zlib_dll* dll = (zlib_dll*)((quint8*)this - ((qptrdiff)(&((zlib_dll*)0)->zError_resolver)));
             if (!dll->isLoaded()) {
                 qWarning("dll not loaded %s @%d", __FUNCTION__, __LINE__);
                 *p = 0;
                 return;
             }
-            *p = (zlibCompileFlags_t*)dll->resolve("zlibCompileFlags");
-            qDebug("zlib_dll::zlibCompileFlags: %p", *p);
+            *p = (zError_t*)dll->resolve("zError");
+            qDebug("zlib_dll::zError: %p", *p);
         }
-    } zlibCompileFlags_resolver;
+    } zError_resolver;
+};
+
+class zlib_dll2 : public dll_helper {
+public:
+    zlib_dll2()
+#ifdef Q_OS_WIN
+        : dll_helper("zlib")
+#else
+        : dll_helper("z")
+#endif
+    {memset(&api, 0, sizeof(api));}
+    typedef struct {
+        typedef const char* zlibVersion_t();
+        zlibVersion_t *zlibVersion;
+        typedef const char* zError_t(int);
+        zError_t *zError;
+    } api_t;
+    api_t api;
+};
+class zlib_api2 {
+public:
+    zlib_api2() : dll(new zlib_dll2()) {}
+    const char* zlibVersion() {
+        assert(dll);
+        if (!dll->api.zlibVersion) {
+            qDebug("resolving '%s' ...", __FUNCTION__);
+            dll->api.zlibVersion = (zlib_dll2::api_t::zlibVersion_t*)dll->resolve("zlibVersion");
+        }
+        assert(dll->api.zlibVersion);
+        return dll->api.zlibVersion();
+    }
+    const char* zError(int e) {
+        assert(dll);
+        if (!dll->api.zError) {
+            qDebug("resolving '%s' ...", __FUNCTION__);
+            dll->api.zError = (zlib_dll2::api_t::zError_t*)dll->resolve("zError");
+        }
+        assert(dll->api.zError);
+        return dll->api.zError(e);
+    }
+private:
+    zlib_dll2 *dll;
 };
 
 /*!
@@ -111,29 +154,25 @@ public:
     zlib_api() : dll(new zlib_dll()) {}
     const char* zlibVersion() {
         qDebug("%s @%d", Q_FUNC_INFO, __LINE__);
-        Q_ASSERT(dll);
+        assert(dll);
         return dll->zlibVersion();
     }
-    uLong zlibCompileFlags() {
+    const char* zError(int e) {
         qDebug("%s @%d", Q_FUNC_INFO, __LINE__);
-        Q_ASSERT(dll);
-        return dll->zlibCompileFlags();
+        assert(dll);
+        return dll->zError(e);
     }
 private:
     zlib_dll *dll;
 };
 
-class test_zlib_api : public zlib_api {
+class test_zlib_api : public zlib_api2 {
 public:
     void test_version() {
-        qDebug("START %s", __FUNCTION__);
         qDebug("zlib version: %s", zlibVersion());
-        qDebug("STOP %s", __FUNCTION__);
     }
-    void test_compileFlags() {
-        qDebug("START %s", __FUNCTION__);
-        qDebug("zlib compile flags=%lu", zlibCompileFlags());
-        qDebug("STOP %s", __FUNCTION__);
+    void test_error(int e) {
+        qDebug("zlib error: %d %s", e, zError(e));
     }
 };
 
@@ -141,7 +180,10 @@ int main(int argc, char *argv[])
 {
     test_zlib_api tt;
     tt.test_version();
-    tt.test_compileFlags();
+    tt.test_version();
+    tt.test_version();
+    tt.test_version();
+    tt.test_error(1);
     return 0;
 }
 

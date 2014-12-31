@@ -6,4 +6,4 @@ SUBDIRS = test/zlib
 have_sdl: SUBDIRS += test/sdl
 }
 
-OTHER_FILES += README.md
+OTHER_FILES += README.md testz.cpp

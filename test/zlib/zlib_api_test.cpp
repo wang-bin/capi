@@ -20,7 +20,7 @@
 #include "zlib_api.h"
 #include <stdio.h>
 
-class test_zlib_api : public zlib::api {
+class test_zlib_api : public zlib::api2 {
 public:
     void test_version() {
         printf("START %s\n", __FUNCTION__);
