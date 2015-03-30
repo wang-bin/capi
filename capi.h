@@ -72,7 +72,7 @@ enum {
 #if CAPI_IS(LAZY_RESOLVE)
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
     class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) { memset(api, 0, sizeof(api));} \
+    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) { memset(&api, 0, sizeof(api));} \
     typedef struct {
 #else
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
@@ -236,7 +236,7 @@ public:
             }
         }
     }
-    virtual ~dll_helper() { m_lib.unload();}
+    virtual ~dll_helper() { m_lib.unload();} //FIXME: ref. QLibrary supports ref. (2 instance load the same library)
     bool isLoaded() const { return m_lib.isLoaded(); }
     void* resolve(const char *symbol) { return (void*)m_lib.resolve(symbol);}
 };
