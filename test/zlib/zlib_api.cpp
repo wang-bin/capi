@@ -16,11 +16,11 @@
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ******************************************************************************/
-
 #define DEBUG
-#include "zlib_api.h"
-#include "capi.h"
+//#define CAPI_IS_LAZY_RESOLVE 0
 #include <QtCore/QLibrary>
+#include "capi.h"
+#include "zlib_api.h" //include last because zlib.h was in namespace capi to avoid covering types later
 
 namespace zlib {
 static const char* zlib[] = {
@@ -32,15 +32,12 @@ static const char* zlib[] = {
     NULL
 };
 static const int versions[] = { capi::NoVersion, 1, 0, capi::EndVersion };
+//CAPI_BEGIN_DLL(zlib, QLibrary)
 CAPI_BEGIN_DLL_VER(zlib, versions, QLibrary)
 CAPI_DEFINE_ENTRY(const char*, zlibVersion, CAPI_ARG0())
 CAPI_DEFINE_ENTRY(const char*, zError, CAPI_ARG1(int))
 CAPI_END_DLL()
+CAPI_DEFINE_DLL
 CAPI_DEFINE(const char*, zlibVersion, CAPI_ARG0())
 CAPI_DEFINE(const char*, zError, CAPI_ARG1(int))
-
-api::api() : dll(new api_dll()) {}
-api::~api() { delete dll;}
-bool api::loaded() const { return dll->isLoaded();}
-
 } //namespace zlib

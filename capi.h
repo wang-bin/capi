@@ -1,7 +1,7 @@
 /******************************************************************************
     Use C API in C++ dynamically and no link. Header only.
     Use it with a code generation tool: https://github.com/wang-bin/mkapi
-    Copyright (C) 2014 Wang Bin <wbsecg1@gmail.com>
+    Copyright (C) 2014-2015 Wang Bin <wbsecg1@gmail.com>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,11 @@
 #ifndef CAPI_H
 #define CAPI_H
 
+/*!
+    How To Use: (see test/zlib)
+    use the header and source from code gerenrated from: https://github.com/wang-bin/mkapi
+ */
+
 #include <cstddef> //ptrdiff_t
 #include <cstdio>
 #include <cassert>
@@ -38,7 +43,7 @@ namespace capi {
 namespace version {
     enum {
         Major = 0,
-        Minor = 1,
+        Minor = 2,
         Patch = 0,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
@@ -90,6 +95,11 @@ enum {
 #else
 #define CAPI_END_DLL() };
 #endif
+#define CAPI_DEFINE_DLL api::api():dll(new api_dll()){} \
+    api::~api(){delete dll;} \
+    bool api::loaded() const { return dll->isLoaded();} \
+    namespace capi {static api_dll* dll = 0;}
+
 /*!
  * N: number of arguments
  * R: return type
@@ -138,6 +148,30 @@ enum {
         assert(dll->api.name); \
         return dll->api.name ARG_V; \
     }
+#define CAPI_NS_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
+    namespace capi { \
+    using capi::dll; \
+    R name ARG_T_V { \
+        CAPI_DBG_CALL(" "); \
+        if (!dll) dll = new api_dll(); \
+        assert(dll && dll->isLoaded()); \
+        return dll->name ARG_V; \
+    } }
+#define CAPI_NS_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V) \
+    namespace capi { \
+    using capi::dll; \
+    R name ARG_T_V { \
+        CAPI_DBG_CALL(" "); \
+        if (!dll) dll = new api_dll(); \
+        assert(dll && dll->isLoaded()); \
+        if (!dll->api.name) { \
+            dll->api.name = (api_dll::api_t::name##_t)dll->resolve(#sym); \
+            CAPI_DBG_RESOLVE("dll::api_t::" #name ": @%p", dll->api.name); \
+        } \
+        assert(dll->api.name); \
+        return dll->api.name ARG_V; \
+    } }
+
 // nested class can not call non-static members outside the class, so hack the address here
 // need -Wno-invalid-offsetof
 #define CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, ARG_T, ARG_T_V, ARG_V) \
@@ -247,15 +281,21 @@ public:
  * used by .cpp to define the api
  *  e.g. CAPI_DEFINE(cl_int, clGetPlatformIDs, "clGetPlatformIDs", CAPI_ARG3(cl_uint, cl_platform_id*, cl_uint*))
  * sym: symbol of the api in library.
+ * Defines both namespace style and class style. User can choose which one to use at runtime by adding a macro before including the header or not: #define SOMELIB_CAPI_NS
+ * See test/zlib/zlib_api.h
  */
-#define CAPI_DEFINE_X(R, name, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V)
+#define CAPI_DEFINE_X(R, name, ARG_T, ARG_T_V, ARG_V) \
+    CAPI_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
+    CAPI_NS_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V)
 /* declare and define the symbol resolvers*/
 #define EMPTY_LINKAGE
 #define CAPI_DEFINE_RESOLVER_X(R, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_M_RESOLVER_T_V(R, EMPTY_LINKAGE, name, sym, ARG_T, ARG_T_V, ARG_V)
 // api with linkage modifier
 #define CAPI_DEFINE_M_RESOLVER_X(R, M, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, ARG_T, ARG_T_V, ARG_V)
 
-#define CAPI_DEFINE2_X(R, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V)
+#define CAPI_DEFINE2_X(R, name, sym, ARG_T, ARG_T_V, ARG_V) \
+    CAPI_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V) \
+    CAPI_NS_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V)
 #define CAPI_DEFINE_ENTRY_X(R, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_M_ENTRY_X(R, EMPTY_LINKAGE, name, sym, ARG_T, ARG_T_V, ARG_V)
 #define CAPI_DEFINE_M_ENTRY_X(R, M, sym, name, ARG_T, ARG_T_V, ARG_V) typedef R (M *name##_t) ARG_T; name##_t name; \
 

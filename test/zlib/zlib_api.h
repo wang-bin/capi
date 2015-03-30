@@ -21,23 +21,29 @@
 #define ZLIB_API_H
 
 // no need to include the C header if only functions declared there
-extern "C" {
+namespace capi { // avoid ambiguity if call function directly
 #include "zlib.h"
 }
 
 namespace zlib {
+#ifdef ZLIB_CAPI_NS
+namespace capi {
+#else
 class api_dll;
 class api
 {
+    api_dll *dll;
 public:
     api();
     virtual ~api();
     virtual bool loaded() const;
+#endif //ZLIB_CAPI_NS
     const char* zlibVersion();
     const char* zError(int);
-private:
-    api_dll *dll;
-};
+}
+#ifndef ZLIB_CAPI_NS
+;
+#endif
 } //namespace zlib
 
 
