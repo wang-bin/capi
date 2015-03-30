@@ -55,54 +55,41 @@ enum {
 /********************************** The following code is only used in .cpp **************************************************/
 /*!
   * compiler may not support init list {a, b, c}
-  * static const char* zlib[] = {
-  * #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
-  *   "zlib",
-  * #else
-  *   "z",
-  * #endif
-  *   NULL};
-  * CAPI_BEGIN_DLL(zlib, QLibrary) // the 2nd parameter 'QLibrary' is a library loading class. \sa dll_helper class
-  * ...
+  * -Library names:
+    static const char* zlib[] = {
+    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
+      "zlib",
+    #else
+      "z",
+    #endif
+      NULL};
+    CAPI_BEGIN_DLL(zlib, QLibrary) // the 2nd parameter 'QLibrary' is a library loading class. \sa dll_helper class
+    ...
+  * -Multiple library versions
+    capi::NoVersion means no version suffix is used,
+    e.g. libz.so. Versions array MUST be end with capi::EndVersion;
+    below is an example to open libz.so, libz.so.1, libz.so.0 on unix
+    static const int ver[] = { capi::NoVersion, 1, 0, capi::EndVersion };
+    CAPI_BEGIN_DLL_VER(zlib, ver)
+    ...
   */
 /// DLL_CLASS is a library loading and symbols resolving class like Qt's QLibrary. Must implement api:
 /// void setFileName(const char*); setFileNameAndVersion(const char* name, int ver);
 /// bool load(); bool unload(); bool isLoaded() const;
 /// void* resolve(const char* symbol);
-#if CAPI_IS(LAZY_RESOLVE)
+/// NOTE: unload() must support ref count. i.e. do unload if no one is using the real library
+
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
     class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) { memset(&api, 0, sizeof(api));} \
-    typedef struct {
-#else
-#define CAPI_BEGIN_DLL(names, DLL_CLASS) \
-    class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
-#endif
-/*!
-  also defines possible library versions to be use. capi::NoVersion means no version suffix is used,
-  e.g. libz.so. Versions array MUST be end with capi::EndVersion;
-  below is an example to open libz.so, libz.so.1, libz.so.0 on unix
-  static const int ver[] = { capi::NoVersion, 1, 0, capi::EndVersion };
-  CAPI_BEGIN_DLL_VER(zlib, ver)
-  ...
- */
-#if CAPI_IS(LAZY_RESOLVE)
+    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) CAPI_DLL_BODY_DEFINE
 #define CAPI_BEGIN_DLL_VER(names, versions, DLL_CLASS) \
     class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names, versions) { ::memset(&api, 0, sizeof(api));} \
-    typedef struct {
-
+    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names, versions) CAPI_DLL_BODY_DEFINE
+#if CAPI_IS(LAZY_RESOLVE)
 #define CAPI_END_DLL() } api_t; api_t api; };
 #else
-#define CAPI_BEGIN_DLL_VER(names, versions, DLL_CLASS) \
-    class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names, versions) { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
-
 #define CAPI_END_DLL() };
 #endif
-
-
 /*!
  * N: number of arguments
  * R: return type
@@ -129,6 +116,11 @@ enum {
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /************The followings are used internally**********/
+#if CAPI_IS(LAZY_RESOLVE)
+#define CAPI_DLL_BODY_DEFINE { memset(&api, 0, sizeof(api));} typedef struct {
+#else
+#define CAPI_DLL_BODY_DEFINE { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
+#endif
 #define CAPI_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
     R api::name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
