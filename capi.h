@@ -17,7 +17,7 @@
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ******************************************************************************/
-// no class based implemention: https://github.com/wang-bin/dllapi . limitation: can not reload library
+// no class based implementation: https://github.com/wang-bin/dllapi . limitation: can not reload library
 #ifndef CAPI_H
 #define CAPI_H
 
@@ -134,18 +134,18 @@ enum {
 #define CAPI_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
     R api::name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
-        assert(dll && dll->isLoaded()); \
+        assert(dll && dll->isLoaded() && "dll is not loaded"); \
         return dll->name ARG_V; \
     }
 #define CAPI_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V) \
     R api::name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
-        assert(dll && dll->isLoaded()); \
+        assert(dll && dll->isLoaded() && "dll is not loaded"); \
         if (!dll->api.name) { \
             dll->api.name = (api_dll::api_t::name##_t)dll->resolve(#sym); \
             CAPI_DBG_RESOLVE("dll::api_t::" #name ": @%p", dll->api.name); \
         } \
-        assert(dll->api.name); \
+        assert(dll->api.name && "failed to resolve " #R "api::" #name #ARG_T_V); \
         return dll->api.name ARG_V; \
     }
 #define CAPI_NS_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
@@ -154,7 +154,7 @@ enum {
     R name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
         if (!dll) dll = new api_dll(); \
-        assert(dll && dll->isLoaded()); \
+        assert(dll && dll->isLoaded() && "dll is not loaded"); \
         return dll->name ARG_V; \
     } }
 #define CAPI_NS_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V) \
@@ -163,12 +163,12 @@ enum {
     R name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
         if (!dll) dll = new api_dll(); \
-        assert(dll && dll->isLoaded()); \
+        assert(dll && dll->isLoaded() && "dll is not loaded"); \
         if (!dll->api.name) { \
             dll->api.name = (api_dll::api_t::name##_t)dll->resolve(#sym); \
             CAPI_DBG_RESOLVE("dll::api_t::" #name ": @%p", dll->api.name); \
         } \
-        assert(dll->api.name); \
+        assert(dll->api.name && "failed to resolve " #R #name #ARG_T_V); \
         return dll->api.name ARG_V; \
     } }
 
@@ -246,7 +246,7 @@ public:
         static bool is_1st = true;
         if (is_1st) {
             is_1st = false;
-            printf("capi::version: %s\n", capi::version::name); fflush(0);
+            fprintf(stderr, "capi::version: %s\n", capi::version::name); fflush(0);
         }
         for (int i = 0; names[i]; ++i) {
             for (int j = 0; versions[j] != capi::EndVersion; ++j) {
@@ -297,7 +297,7 @@ public:
     CAPI_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V) \
     CAPI_NS_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V)
 #define CAPI_DEFINE_ENTRY_X(R, name, sym, ARG_T, ARG_T_V, ARG_V) CAPI_DEFINE_M_ENTRY_X(R, EMPTY_LINKAGE, name, sym, ARG_T, ARG_T_V, ARG_V)
-#define CAPI_DEFINE_M_ENTRY_X(R, M, sym, name, ARG_T, ARG_T_V, ARG_V) typedef R (M *name##_t) ARG_T; name##_t name; \
+#define CAPI_DEFINE_M_ENTRY_X(R, M, sym, name, ARG_T, ARG_T_V, ARG_V) typedef R (M *name##_t) ARG_T; name##_t name;
 
 #define CAPI_ARG0() (), (), ()
 #define CAPI_ARG1(P1) (P1), (P1 p1), (p1)
