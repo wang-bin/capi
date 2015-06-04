@@ -44,7 +44,7 @@ namespace version {
     enum {
         Major = 0,
         Minor = 3,
-        Patch = 2,
+        Patch = 3,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -148,10 +148,18 @@ enum {
         assert(dll->api.name && "failed to resolve " #R #sym #ARG_T_V); \
         return dll->api.name ARG_V; \
     }
+/*
+ * TODO: choose 1 on below
+ * - use CAPI_LINKAGE and remove CAPI_DEFINE_M_ENTRY_X & CAPI_DEFINE_M_RESOLVER_X
+ * - also pass a linkage parameter to CAPI_NS_DEFINE_T_V & CAPI_NS_DEFINE2_T_V
+ */
+#ifndef CAPI_LINKAGE
+#define CAPI_LINKAGE
+#endif //CAPI_LINKAGE
 #define CAPI_NS_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
     namespace capi { \
     using capi::dll; \
-    R name ARG_T_V { \
+    R CAPI_LINKAGE name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
         if (!dll) dll = new api_dll(); \
         assert(dll && dll->isLoaded() && "dll is not loaded"); \
@@ -160,7 +168,7 @@ enum {
 #define CAPI_NS_DEFINE2_T_V(R, name, sym, ARG_T, ARG_T_V, ARG_V) \
     namespace capi { \
     using capi::dll; \
-    R name ARG_T_V { \
+    R CAPI_LINKAGE name ARG_T_V { \
         CAPI_DBG_CALL(" "); \
         if (!dll) dll = new api_dll(); \
         assert(dll && dll->isLoaded() && "dll is not loaded"); \
