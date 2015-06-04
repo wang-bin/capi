@@ -16,16 +16,12 @@
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ******************************************************************************/
-#define ZLIB_CAPI_NS
+//#define ZLIB_CAPI_NS
+//#define CAPI_LINK_ZLIB // add -lz is required
 #include <stdio.h>
 #include "zlib_api.h"
-#ifdef ZLIB_CAPI_NS
-using namespace zlib::capi;
-#endif //ZLIB_CAPI_NS
-class test_zlib_api
-#ifndef ZLIB_CAPI_NS
-        : public zlib::api
-#endif //
+
+class test_zlib_api : public zlib::api
 {
 public:
     void test_version() {
@@ -40,7 +36,6 @@ int main(int, char **)
 {
     test_zlib_api tt;
     printf("capi zlib test\n");
-    tt.test_version();
     tt.test_version();
     tt.test_version();
     tt.test_zError(1);

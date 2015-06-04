@@ -85,11 +85,11 @@ enum {
 /// NOTE: unload() must support ref count. i.e. do unload if no one is using the real library
 
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
-    class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names) CAPI_DLL_BODY_DEFINE
+    class api_dll : public ::capi::internal::dll_helper<DLL_CLASS> { \
+    public: api_dll() : ::capi::internal::dll_helper<DLL_CLASS>(names) CAPI_DLL_BODY_DEFINE
 #define CAPI_BEGIN_DLL_VER(names, versions, DLL_CLASS) \
-    class api_dll : public capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll() : capi::internal::dll_helper<DLL_CLASS>(names, versions) CAPI_DLL_BODY_DEFINE
+    class api_dll : public ::capi::internal::dll_helper<DLL_CLASS> { \
+    public: api_dll() : ::capi::internal::dll_helper<DLL_CLASS>(names, versions) CAPI_DLL_BODY_DEFINE
 #if CAPI_IS(LAZY_RESOLVE)
 #define CAPI_END_DLL() } api_t; api_t api; };
 #else

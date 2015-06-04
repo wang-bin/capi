@@ -31,7 +31,7 @@ static const char* zlib[] = {
 #endif
     NULL
 };
-static const int versions[] = { capi::NoVersion, 1, 0, capi::EndVersion };
+static const int versions[] = { ::capi::NoVersion, 1, 0, ::capi::EndVersion };
 //CAPI_BEGIN_DLL(zlib, QLibrary)
 CAPI_BEGIN_DLL_VER(zlib, versions, QLibrary)
 CAPI_DEFINE_ENTRY(const char*, zlibVersion, CAPI_ARG0())
