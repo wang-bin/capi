@@ -19,27 +19,25 @@
 
 #ifndef ZLIB_API_H
 #define ZLIB_API_H
-
 // no need to include the C header if only functions declared there
 #ifndef CAPI_LINK_ZLIB
-namespace zlib {
+namespace zlib { //need a unique namespace
 namespace capi {
 #else
 extern "C" {
 #endif
-#include "zlib.h"
+#include "zlib.h" //// we need some types define there. otherwise we can remove this
 #ifndef CAPI_LINK_ZLIB
 }
 #endif
 }
 
-
-namespace zlib {
+namespace zlib { //need a unique namespace
 #ifndef CAPI_LINK_ZLIB
 using namespace capi;
 #endif
-class api_dll;
-class api
+class api_dll; //must use this name
+class api //must use this name
 {
     api_dll *dll;
 public:
@@ -52,8 +50,6 @@ public:
 #endif
 };
 } //namespace zlib
-
-
 #ifdef ASS_CAPI_NS
 using namespace zlib::capi;
 #else

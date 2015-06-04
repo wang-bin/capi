@@ -16,9 +16,9 @@
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ******************************************************************************/
-#define DEBUG
-//#define CAPI_IS_LAZY_RESOLVE 0
-#include <QtCore/QLibrary>
+#define DEBUG ////log dll load and symbol resolve
+//#define CAPI_IS_LAZY_RESOLVE 0 //define it will resolve all symbols in constructor
+#include <QtCore/QLibrary> // need a library loader/resolver class whose function names like QLibrary
 #include "capi.h"
 #include "zlib_api.h" //include last because zlib.h was in namespace capi to avoid covering types later
 
