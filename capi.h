@@ -44,7 +44,7 @@ namespace version {
     enum {
         Major = 0,
         Minor = 3,
-        Patch = 0,
+        Patch = 1,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -71,10 +71,10 @@ enum {
     CAPI_BEGIN_DLL(zlib, QLibrary) // the 2nd parameter 'QLibrary' is a library loading class. \sa dll_helper class
     ...
   * -Multiple library versions
-    capi::NoVersion means no version suffix is used,
-    e.g. libz.so. Versions array MUST be end with capi::EndVersion;
+    ::capi::NoVersion means no version suffix is used,
+    e.g. libz.so. Versions array MUST be end with ::capi::EndVersion;
     below is an example to open libz.so, libz.so.1, libz.so.0 on unix
-    static const int ver[] = { capi::NoVersion, 1, 0, capi::EndVersion };
+    static const int ver[] = { ::capi::NoVersion, 1, 0, ::capi::EndVersion };
     CAPI_BEGIN_DLL_VER(zlib, ver)
     ...
   */
@@ -238,7 +238,7 @@ enum {
 namespace capi {
 namespace internal {
 // base ctor dll_helper("name")=>derived members in decl order(resolvers)=>derived ctor
-static const int kDefaultVersions[] = {capi::NoVersion, capi::EndVersion};
+static const int kDefaultVersions[] = {::capi::NoVersion, ::capi::EndVersion};
 template <class DLL> class dll_helper { //no CAPI_EXPORT required
     DLL m_lib;
 public:
@@ -246,11 +246,11 @@ public:
         static bool is_1st = true;
         if (is_1st) {
             is_1st = false;
-            fprintf(stderr, "capi::version: %s\n", capi::version::name); fflush(0);
+            fprintf(stderr, "capi::version: %s\n", ::capi::version::name); fflush(0);
         }
         for (int i = 0; names[i]; ++i) {
-            for (int j = 0; versions[j] != capi::EndVersion; ++j) {
-                if (versions[j] == capi::NoVersion)
+            for (int j = 0; versions[j] != ::capi::EndVersion; ++j) {
+                if (versions[j] == ::capi::NoVersion)
                     m_lib.setFileName(names[i]);
                 else
                     m_lib.setFileNameAndVersion(names[i], versions[j]);
