@@ -44,7 +44,7 @@ namespace version {
     enum {
         Major = 0,
         Minor = 3,
-        Patch = 1,
+        Patch = 2,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -145,7 +145,7 @@ enum {
             dll->api.name = (api_dll::api_t::name##_t)dll->resolve(#sym); \
             CAPI_DBG_RESOLVE("dll::api_t::" #name ": @%p", dll->api.name); \
         } \
-        assert(dll->api.name && "failed to resolve " #R "api::" #name #ARG_T_V); \
+        assert(dll->api.name && "failed to resolve " #R #sym #ARG_T_V); \
         return dll->api.name ARG_V; \
     }
 #define CAPI_NS_DEFINE_T_V(R, name, ARG_T, ARG_T_V, ARG_V) \
@@ -168,7 +168,7 @@ enum {
             dll->api.name = (api_dll::api_t::name##_t)dll->resolve(#sym); \
             CAPI_DBG_RESOLVE("dll::api_t::" #name ": @%p", dll->api.name); \
         } \
-        assert(dll->api.name && "failed to resolve " #R #name #ARG_T_V); \
+        assert(dll->api.name && "failed to resolve " #R #sym #ARG_T_V); \
         return dll->api.name ARG_V; \
     } }
 
