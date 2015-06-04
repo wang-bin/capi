@@ -79,7 +79,10 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
     #include <stdio.h>
     #include "zlib_api.h"
 
-    class test_zlib_api : public zlib::api
+    class test_zlib_api
+    #ifndef ZLIB_CAPI_NS
+        	: public zlib::api // will unload library in dtor
+	#endif
     {
     public:
         void test_version() {
@@ -102,7 +105,7 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
 
 ### 3 Styles
 
-The same code and object file `zlib_api.o` support 3 styles with only 1 line change in you code (test.cpp above)!
+The same code support 3 styles with only 1 line change in you code (test.cpp above)! You can switch class style and namespace without rebuild api implementation object(zlib_api.cpp).
 
 - **Class style(the default)**
 
@@ -116,7 +119,11 @@ The same code and object file `zlib_api.o` support 3 styles with only 1 line cha
 
 - **Direct link style**
 
-  The original functions are called. Must add `#define CAPI_LINK_ZLIB` before `#include "zlib_api.h"` and add `-lz` flags to the compiler
+  The original functions are called. Must add `#define CAPI_LINK_ZLIB` before `#include "zlib_api.h"`, add `-DCAPI_LINK_ZLIB` to rebuild zlib_api.cpp add `-lz` flags to the compiler
+
+### Lazy Resolve
+
+The symbol is resolved at the first call. You can add `#define CAPI_IS_LAZY_RESOLVE 0` in zlib_api.cpp before `#include "capi.h"` to resolve all symbols as soon as the library is loaded.
 
 ### Auto Code Generation
 
@@ -124,4 +131,4 @@ There is a tool to help you generate header and source: https://github.com/wang-
 
 The tool is based on clang 3.4.
 
-Run `make` to build the tool then run `./mkapi.sh -name zlib zlib.h -Idir` to generate zlib_api.h and zlib_api.cpp.
+Run `make` to build the tool then run `./mkapi.sh -name zlib zlib.h -I` to generate zlib_api.h and zlib_api.cpp.

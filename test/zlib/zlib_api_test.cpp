@@ -21,7 +21,10 @@
 #include <stdio.h>
 #include "zlib_api.h"
 
-class test_zlib_api : public zlib::api
+class test_zlib_api
+#ifndef ZLIB_CAPI_NS
+        : public zlib::api // will unload library in dtor
+#endif
 {
 public:
     void test_version() {
