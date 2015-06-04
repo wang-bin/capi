@@ -43,7 +43,7 @@ namespace capi {
 namespace version {
     enum {
         Major = 0,
-        Minor = 2,
+        Minor = 3,
         Patch = 0,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
