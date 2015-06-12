@@ -33,7 +33,7 @@ extern "C" {
 }
 
 namespace zlib { //need a unique namespace
-#ifndef CAPI_LINK_ZLIB
+#ifndef CAPI_LINK_ZLIB // avoid ambiguous in zlib_api.cpp
 using namespace capi;
 #endif
 class api_dll; //must use this name
@@ -50,9 +50,11 @@ public:
 #endif
 };
 } //namespace zlib
-#ifdef ASS_CAPI_NS
+#ifndef ZLIB_CAPI_BUILD
+#ifdef ZLIB_CAPI_NS
 using namespace zlib::capi;
 #else
 using namespace zlib;
 #endif
+#endif //ZLIB_CAPI_BUILD
 #endif // ZLIB_API_H

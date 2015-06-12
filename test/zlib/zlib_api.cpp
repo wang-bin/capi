@@ -16,18 +16,20 @@
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ******************************************************************************/
+#define ZLIB_CAPI_BUILD
 #define DEBUG ////log dll load and symbol resolve
 //#define CAPI_IS_LAZY_RESOLVE 0 //define it will resolve all symbols in constructor
 #ifndef CAPI_LINK_ZLIB
 #include <QtCore/QLibrary> // need a library loader/resolver class whose function names like QLibrary
-#endif //CAPI_LINK_ZLIB
 #include "capi.h"
+#endif //CAPI_LINK_ZLIB
 #include "zlib_api.h" //include last because zlib.h was in namespace capi to avoid covering types later
 
 namespace zlib {
 #ifdef CAPI_LINK_ZLIB
-class api_dll {public: bool isLoaded() const {return true;}};
-CAPI_DEFINE_DLL
+api::api(){dll=0;}
+api::~api(){}
+bool api::loaded() const { return true;}
 #else
 static const char* zlib[] = {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
