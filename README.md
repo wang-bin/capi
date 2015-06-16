@@ -36,7 +36,7 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
     #endif
     };
     } //namespace zlib
-    #ifdef ASS_CAPI_NS
+    #ifdef ZLIB_CAPI_NS
     using namespace zlib::capi;
     #else
     using namespace zlib;
@@ -130,5 +130,7 @@ The symbol is resolved at the first call. You can add `#define CAPI_IS_LAZY_RESO
 There is a tool to help you generate header and source: https://github.com/wang-bin/mkapi
 
 The tool is based on clang 3.4.
+
+All you need to do is simply run the tool and use the generated files in your project, maybe with a few modifications.
 
 Run `make` to build the tool then run `./mkapi.sh -name zlib zlib.h -I` to generate zlib_api.h and zlib_api.cpp.
