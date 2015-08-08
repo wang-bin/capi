@@ -257,11 +257,16 @@ public:
             fprintf(stderr, "capi::version: %s\n", ::capi::version::name); fflush(0);
         }
         for (int i = 0; names[i]; ++i) {
+#ifdef QLIBRARY_H
+#define QSTR(x) QString::fromLatin1(x)
+#else
+#define QSTR(x) x
+#endif
             for (int j = 0; versions[j] != ::capi::EndVersion; ++j) {
                 if (versions[j] == ::capi::NoVersion)
-                    m_lib.setFileName(names[i]);
+                    m_lib.setFileName(QSTR(names[i]));
                 else
-                    m_lib.setFileNameAndVersion(names[i], versions[j]);
+                    m_lib.setFileNameAndVersion(QSTR(names[i]), versions[j]);
                 if (m_lib.load()) {
                     CAPI_DBG_LOAD("capi loaded {library name: %s, version: %d}", names[i], versions[j]);
                     return;
