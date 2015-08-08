@@ -23,7 +23,7 @@
 
 class test_zlib_api
 #ifndef ZLIB_CAPI_NS
-        : public zlib::api // will unload library in dtor
+        : protected zlib::api // will unload library in dtor
 #endif
 {
 public:

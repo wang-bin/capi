@@ -81,8 +81,8 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
 
     class test_zlib_api
     #ifndef ZLIB_CAPI_NS
-        	: public zlib::api // will unload library in dtor
-	#endif
+                : protected zlib::api // will unload library in dtor
+    #endif
     {
     public:
         void test_version() {
