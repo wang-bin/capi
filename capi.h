@@ -369,7 +369,7 @@ public:
         handle = (void*)::LoadLibraryExA(full_name, NULL, 0); //DONT_RESOLVE_DLL_REFERENCES
 #endif
 #else
-        handle = ::dlopen(full_name, RTLD_NOW|RTLD_LOCAL); // try no prefix name if error?
+        handle = ::dlopen(full_name, RTLD_LAZY|RTLD_LOCAL); // try no prefix name if error?
 #endif
         return !!handle;
     }
@@ -398,7 +398,7 @@ private:
             _s[0] = '_';
         }
         const char* s = try_ ? sym : _s;
-        CAPI_DBG_LOAD("dso.resolve(\"%s\", %d)", s, try_);
+        CAPI_DBG_RESOLVE("dso.resolve(\"%s\", %d)", s, try_);
 #if defined(Q_OS_WIN)
         void *ptr = (void*)::GetProcAddress((HMODULE)handle, s);
 #else
