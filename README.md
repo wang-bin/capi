@@ -48,7 +48,9 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
 
     #define DEBUG //log dll load and symbol resolve
     //#define CAPI_IS_LAZY_RESOLVE 0 //define it will resolve all symbols in constructor
-    #include <QtCore/QLibrary> // need a library loader/resolver class whose function names like QLibrary
+    // need a library loader/resolver class whose function names like QLibrary
+    // if ::capi::internal::dso is used, do not include <QLibrary>
+    //#include <QtCore/QLibrary>
     #include "capi.h"
     #include "zlib_api.h" //include last because zlib.h was in namespace capi to avoid covering types later
 
@@ -61,9 +63,9 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
     #endif
         NULL
     };
-    static const int versions[] = { ::capi::NoVersion, 1, 0, ::capi::EndVersion };
+    static const int versions[] = { 0, ::capi::NoVersion, 1, ::capi::EndVersion };
     //CAPI_BEGIN_DLL(zlib, QLibrary)
-    CAPI_BEGIN_DLL_VER(zlib, versions, QLibrary)
+    CAPI_BEGIN_DLL_VER(zlib, versions, ::capi::internal::dso)
     CAPI_DEFINE_ENTRY(const char*, zlibVersion, CAPI_ARG0())
     CAPI_DEFINE_ENTRY(const char*, zError, CAPI_ARG1(int))
     CAPI_END_DLL()
