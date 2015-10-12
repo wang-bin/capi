@@ -334,7 +334,7 @@ public:
     }
     void setFileNameAndVersion(const char* name, int ver) {
         setFileName(name);
-        if (ver < 0 || ver > 999)
+        if (ver < 0)
             return;
 #ifdef CAPI_TARGET_OS_WIN // ignore version on win. xxx-V.dll?
         return;
@@ -344,18 +344,21 @@ public:
 #ifdef CAPI_TARGET_OS_MAC
         memset(full_name + strlen(full_name) - sizeof(kExt) + 1, 0, sizeof(kExt) - 1);
 #endif
-        char* c = full_name + strlen(full_name);
-        *c++ = '.';
-        if (ver > 99) {
-            *c++ = '0' + ver/100;
-            ver %= 100;
+        char* d = full_name + sizeof(full_name) - 1;
+        if (ver == 0) {
+            *d-- = '0';
+        } else {
+            while (ver > 0) {
+                *d-- = '0' + ver%10;
+                ver /= 10;
+            }
         }
-        if (ver > 9) {
-            *c++ = '0' + ver/10;
-            ver %= 10;
-        }
-        *c++ = '0' + ver;
+        const int len = sizeof(full_name) - (++d - full_name);
+        char *c = (char*)memcpy(full_name + strlen(full_name) + 1, d, len);
+        memset(d, 0, len);
+        *(c-1) = '.';
 #ifdef CAPI_TARGET_OS_MAC
+        c += len;
         memcpy(c, kExt, sizeof(kExt) - 1);
 #endif //CAPI_TARGET_OS_MAC
         CAPI_DBG_LOAD("dso.setFileNameAndVersion full name: %s", full_name);
