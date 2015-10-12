@@ -43,8 +43,8 @@ namespace capi {
 namespace version {
     enum {
         Major = 0,
-        Minor = 3,
-        Patch = 3,
+        Minor = 4,
+        Patch = 0,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -68,7 +68,7 @@ enum {
       "z",
     #endif
       NULL};
-    CAPI_BEGIN_DLL(zlib, QLibrary) // the 2nd parameter 'QLibrary' is a library loading class. \sa dll_helper class
+    CAPI_BEGIN_DLL(zlib, ::capi::internal::dso) // the 2nd parameter is a dynamic shared object loader class. \sa dll_helper class
     ...
   * -Multiple library versions
     ::capi::NoVersion means no version suffix is used,
@@ -78,12 +78,13 @@ enum {
     CAPI_BEGIN_DLL_VER(zlib, ver)
     ...
   */
-/// DLL_CLASS is a library loading and symbols resolving class like Qt's QLibrary. Must implement api:
+/// DLL_CLASS is a library loader and symbols resolver class like Qt's QLibrary. Must implement api:
 /// void setFileName(const char*); setFileNameAndVersion(const char* name, int ver);
 /// bool load(); bool unload(); bool isLoaded() const;
 /// void* resolve(const char* symbol);
 /// NOTE: unload() must support ref count. i.e. do unload if no one is using the real library
-
+/// You can use ::capi::internal::dso instead of QLibrary
+/// DO NOT include <QLibrary> if ::capi::internal::dso is used!
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
     class api_dll : public ::capi::internal::dll_helper<DLL_CLASS> { \
     public: api_dll() : ::capi::internal::dll_helper<DLL_CLASS>(names) CAPI_DLL_BODY_DEFINE
@@ -243,6 +244,24 @@ enum {
 #endif //DEBUG_CALL
 //fully expand. used by VC. VC will not expand __VA_ARGS__ but treats it as 1 parameter
 #define EXPAND(expr) expr //TODO: rename CAPI_EXPAND
+#if defined(WIN64) || defined(_WIN64) || defined(__WIN64__) \
+    || defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) \
+    || defined(WINCE) || defined(_WIN32_WCE)
+#define CAPI_TARGET_OS_WIN 1
+#include <windows.h>
+#ifdef WINAPI_FAMILY
+#include <winapifamily.h>
+#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#define CAPI_TARGET_OS_WINRT 1
+#endif
+#endif //WINAPI_FAMILY
+#endif
+#if defined(__APPLE__) && (defined(__GNUC__) || defined(__xlC__) || defined(__xlc__))
+#define CAPI_TARGET_OS_MAC 1
+#endif
+#ifndef CAPI_TARGET_OS_WIN
+#include <dlfcn.h>
+#endif
 namespace capi {
 namespace internal {
 // base ctor dll_helper("name")=>derived members in decl order(resolvers)=>derived ctor
@@ -278,6 +297,117 @@ public:
     virtual ~dll_helper() { m_lib.unload();} //FIXME: ref. QLibrary supports ref. (2 instance load the same library)
     bool isLoaded() const { return m_lib.isLoaded(); }
     void* resolve(const char *symbol) { return (void*)m_lib.resolve(symbol);}
+};
+
+#ifdef CAPI_TARGET_OS_WIN
+    static const char kExt[] = "";
+    static const char kExt[] = ".dll";
+#else
+    static const char kPre[] = "lib";
+#ifdef CAPI_TARGET_OS_MAC
+    static const char kExt[] = ".dylib";
+#else
+    static const char kExt[] = ".so";
+#endif
+#endif
+class dso {
+    void *handle;
+    char full_name[256];
+    dso(const dso&);
+    dso& operator=(const dso&);
+public:
+    dso(): handle(0) {
+        memset(full_name, 0, sizeof(full_name));
+        if (sizeof(kPre) > 1)
+            memcpy(full_name, kPre, sizeof(kPre) - 1);
+    }
+    ~dso() { unload();}
+    void setFileName(const char* name) {
+        CAPI_DBG_LOAD("dso.setFileName(\"%s\")", name);
+        int offset = sizeof(kPre) > 1 ? sizeof(kPre) - 1 : 0;
+        assert(strlen(name) + offset + sizeof(kExt) - 1 < sizeof(full_name));
+        memset(full_name + offset, 0, sizeof(full_name) - offset);
+        memcpy(full_name + offset, name, strlen(name));
+        offset +=strlen(name);
+        memcpy(full_name + offset, kExt, sizeof(kExt) - 1);
+        CAPI_DBG_LOAD("dso.setFileName full name: %s", full_name);
+    }
+    void setFileNameAndVersion(const char* name, int ver) {
+        setFileName(name);
+        if (ver < 0 || ver > 999)
+            return;
+#ifdef CAPI_TARGET_OS_WIN // ignore version on win. xxx-V.dll?
+        return;
+#endif
+        assert(strlen(full_name) + 2 < sizeof(full_name)); // + ".N"
+        // mac: libxxoo.1.dylib. unix: libxxoo.so.1
+#ifdef CAPI_TARGET_OS_MAC
+        memset(full_name + strlen(full_name) - sizeof(kExt) + 1, 0, sizeof(kExt) - 1);
+#endif
+        char* c = full_name + strlen(full_name);
+        *c++ = '.';
+        if (ver > 99) {
+            *c++ = '0' + ver/100;
+            ver %= 100;
+        }
+        if (ver > 9) {
+            *c++ = '0' + ver/10;
+            ver %= 10;
+        }
+        *c++ = '0' + ver;
+#ifdef CAPI_TARGET_OS_MAC
+        memcpy(c, kExt, sizeof(kExt) - 1);
+#endif //CAPI_TARGET_OS_MAC
+        CAPI_DBG_LOAD("dso.setFileNameAndVersion full name: %s", full_name);
+    }
+    bool load() {
+#ifdef CAPI_TARGET_OS_WIN
+#ifdef CAPI_TARGET_OS_WINRT
+        //char16
+        //handle = (void*)::LoadPackagedLibrary()
+#else
+        handle = (void*)::LoadLibraryExA(full_name, NULL, 0); //DONT_RESOLVE_DLL_REFERENCES
+#endif
+#else
+        handle = ::dlopen(full_name, RTLD_NOW|RTLD_LOCAL); // try no prefix name if error?
+#endif
+        return !!handle;
+    }
+    bool unload() {
+        if (!isLoaded())
+            return true;
+#ifdef CAPI_TARGET_OS_WIN
+        if (!::FreeLibrary(static_cast<HMODULE>(handle))) //return 0 if error. ref counted
+            return false;
+#else
+        if (::dlclose(handle) != 0) //ref counted
+            return false;
+#endif
+        handle = 0; //TODO: check ref?
+        return true;
+    }
+    bool isLoaded() const { return !!handle;}
+    void* resolve(const char* symbol) { return resolve(symbol, true);}
+private:
+    void* resolve(const char* sym, bool try_) {
+        char _s[512]; // old a.out systems add an underscore in front of symbols
+        if (!try_) { //previous has no '_', now has '_'
+            assert(strlen(sym) + 1 < sizeof(_s));
+            memset(_s, 0, sizeof(_s));
+            memcpy(_s+1, sym, strlen(sym));
+            _s[0] = '_';
+        }
+        const char* s = try_ ? sym : _s;
+        CAPI_DBG_LOAD("dso.resolve(\"%s\", %d)", s, try_);
+#if defined(Q_OS_WIN)
+        void *ptr = (void*)::GetProcAddress((HMODULE)handle, s);
+#else
+        void *ptr = ::dlsym(handle, s);
+#endif
+        if (!ptr && try_)
+            return resolve(sym, false);
+        return ptr;
+    }
 };
 } //namespace internal
 } //namespace capi
