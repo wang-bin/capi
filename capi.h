@@ -44,7 +44,7 @@ namespace version {
     enum {
         Major = 0,
         Minor = 4,
-        Patch = 1,
+        Patch = 2,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -411,7 +411,7 @@ private:
         }
         const char* s = try_ ? sym : _s;
         CAPI_DBG_RESOLVE("dso.resolve(\"%s\", %d)", s, try_);
-#if defined(Q_OS_WIN)
+#ifdef CAPI_TARGET_OS_WIN
         void *ptr = (void*)::GetProcAddress((HMODULE)handle, s);
 #else
         void *ptr = ::dlsym(handle, s);
