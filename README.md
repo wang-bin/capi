@@ -1,6 +1,8 @@
 # capi
 
-This header only library helps you use C api in a shared library by dynamically loading instead of linking to it with minimal efforts.
+This header only tool helps you use C APIs in a shared library by dynamically loading instead of linking against it with minimal efforts.
+
+Only depends on std C++
 
 Here is a simple zlib example, if you want use zlib functions, inherits class zlib::api.
 
@@ -48,15 +50,14 @@ Here is a simple zlib example, if you want use zlib functions, inherits class zl
 
     #define DEBUG //log dll load and symbol resolve
     //#define CAPI_IS_LAZY_RESOLVE 0 //define it will resolve all symbols in constructor
-    // need a library loader/resolver class whose function names like QLibrary
-    // if ::capi::internal::dso is used, do not include <QLibrary>
-    //#include <QtCore/QLibrary>
+    // Need a library loader/resolver class whose function names like QLibrary. You can use ::capi::internal::dso
+    //#include <QtCore/QLibrary> //remove this if use ::capi::internal::dso instead of QLibrary
     #include "capi.h"
     #include "zlib_api.h" //include last because zlib.h was in namespace capi to avoid covering types later
 
     namespace zlib {
     static const char* zlib[] = {
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
+    #ifdef CAPI_TARGET_OS_WIN
         "zlib",
     #else
         "z",

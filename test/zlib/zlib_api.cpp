@@ -20,9 +20,8 @@
 #define DEBUG ////log dll load and symbol resolve
 //#define CAPI_IS_LAZY_RESOLVE 0 //define it will resolve all symbols in constructor
 #ifndef CAPI_LINK_ZLIB
-// need a library loader/resolver class whose function names like QLibrary
-// if ::capi::internal::dso is used, do not include <QLibrary>
-//#include <QtCore/QLibrary>
+// Need a library loader/resolver class whose function names like QLibrary. You can use ::capi::internal::dso
+//#include <QtCore/QLibrary> //remove this if use ::capi::internal::dso instead of QLibrary
 #include "capi.h"
 #endif //CAPI_LINK_ZLIB
 #include "zlib_api.h" //include last because zlib.h was in namespace capi to avoid covering types later

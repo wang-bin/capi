@@ -44,7 +44,7 @@ namespace version {
     enum {
         Major = 0,
         Minor = 4,
-        Patch = 0,
+        Patch = 1,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -84,7 +84,6 @@ enum {
 /// void* resolve(const char* symbol);
 /// NOTE: unload() must support ref count. i.e. do unload if no one is using the real library
 /// You can use ::capi::internal::dso instead of QLibrary
-/// DO NOT include <QLibrary> if ::capi::internal::dso is used!
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
     class api_dll : public ::capi::internal::dll_helper<DLL_CLASS> { \
     public: api_dll() : ::capi::internal::dll_helper<DLL_CLASS>(names) CAPI_DLL_BODY_DEFINE
@@ -150,7 +149,7 @@ enum {
         return dll->api.name ARG_V; \
     }
 /*
- * TODO: choose 1 on below
+ * TODO: choose 1 of below
  * - use CAPI_LINKAGE and remove CAPI_DEFINE_M_ENTRY_X & CAPI_DEFINE_M_RESOLVER_X
  * - also pass a linkage parameter to CAPI_NS_DEFINE_T_V & CAPI_NS_DEFINE2_T_V
  */
@@ -264,10 +263,29 @@ enum {
 #endif
 namespace capi {
 namespace internal {
+// the following code is for the case DLL=QLibrary + QT_NO_CAST_FROM_ASCII
+// you can add a new qstr_wrap like class and a specialization of dso_trait to support a new string type before/after include "capi.h"
+struct qstr_wrap {
+    static const char* fromLatin1(const char* s) {return s;}
+};
+template<class T> struct dso_trait {
+    typedef const char* str_t;
+    typedef qstr_wrap qstr_t;
+};
+//can not explicit specialization of 'trait' in class scope
+#if defined(QLIBRARY_H) && defined(QT_CORE_LIB)
+template<> struct dso_trait<QLibrary> {
+    typedef QString str_t;
+    typedef QString qstr_t;
+};
+#endif
 // base ctor dll_helper("name")=>derived members in decl order(resolvers)=>derived ctor
 static const int kDefaultVersions[] = {::capi::NoVersion, ::capi::EndVersion};
 template <class DLL> class dll_helper { //no CAPI_EXPORT required
     DLL m_lib;
+    typename dso_trait<DLL>::str_t strType(const char* s) {
+        return dso_trait<DLL>::qstr_t::fromLatin1(s);
+    }
 public:
     dll_helper(const char* names[], const int versions[] = kDefaultVersions) {
         static bool is_1st = true;
@@ -276,16 +294,11 @@ public:
             fprintf(stderr, "capi::version: %s\n", ::capi::version::name); fflush(0);
         }
         for (int i = 0; names[i]; ++i) {
-#ifdef QLIBRARY_H
-#define QSTR(x) QString::fromLatin1(x)
-#else
-#define QSTR(x) x
-#endif
             for (int j = 0; versions[j] != ::capi::EndVersion; ++j) {
                 if (versions[j] == ::capi::NoVersion)
-                    m_lib.setFileName(QSTR(names[i]));
+                    m_lib.setFileName(strType(names[i]));
                 else
-                    m_lib.setFileNameAndVersion(QSTR(names[i]), versions[j]);
+                    m_lib.setFileNameAndVersion(strType(names[i]), versions[j]);
                 if (m_lib.load()) {
                     CAPI_DBG_LOAD("capi loaded {library name: %s, version: %d}", names[i], versions[j]);
                     return;
@@ -294,7 +307,7 @@ public:
             }
         }
     }
-    virtual ~dll_helper() { m_lib.unload();} //FIXME: ref. QLibrary supports ref. (2 instance load the same library)
+    virtual ~dll_helper() { m_lib.unload();}
     bool isLoaded() const { return m_lib.isLoaded(); }
     void* resolve(const char *symbol) { return (void*)m_lib.resolve(symbol);}
 };
@@ -330,9 +343,9 @@ public:
         memcpy(full_name + offset, name, strlen(name));
         offset +=strlen(name);
         memcpy(full_name + offset, kExt, sizeof(kExt) - 1);
-        CAPI_DBG_LOAD("dso.setFileName full name: %s", full_name);
     }
     void setFileNameAndVersion(const char* name, int ver) {
+        CAPI_DBG_LOAD("dso.setFileNameAndVersion(\"%s\", %d)", name, ver);
         setFileName(name);
         if (ver < 0)
             return;
@@ -357,9 +370,9 @@ public:
         c += len;
         memcpy(c, kExt, sizeof(kExt) - 1);
 #endif //CAPI_TARGET_OS_MAC
-        CAPI_DBG_LOAD("dso.setFileNameAndVersion full name: %s", full_name);
     }
     bool load() {
+        CAPI_DBG_LOAD("dso.load: %s", full_name);
 #ifdef CAPI_TARGET_OS_WIN
 #ifdef CAPI_TARGET_OS_WINRT
         //char16

@@ -2,7 +2,7 @@
 extern "C" {
 //#include <SDL/SDL.h>
 }
-class sdl_test : public sdl::api {
+class sdl_test : protected sdl::api {
 public:
     void run() {
         SDL_Init(SDL_INIT_VIDEO);
