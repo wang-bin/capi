@@ -34,7 +34,7 @@ api::~api(){}
 bool api::loaded() const { return true;}
 #else
 static const char* zlib[] = {
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
+#ifdef CAPI_TARGET_OS_WIN
     "zlib",
 #else
     "z",

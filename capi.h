@@ -62,7 +62,7 @@ enum {
   * compiler may not support init list {a, b, c}
   * -Library names:
     static const char* zlib[] = {
-    #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(WIN64) || defined(_WIN64) || defined(__WIN64__)
+    #ifdef CAPI_TARGET_OS_WIN
       "zlib",
     #else
       "z",
@@ -345,18 +345,14 @@ public:
         memset(full_name + strlen(full_name) - sizeof(kExt) + 1, 0, sizeof(kExt) - 1);
 #endif
         char* d = full_name + sizeof(full_name) - 1;
-        if (ver == 0) {
-            *d-- = '0';
-        } else {
-            while (ver > 0) {
-                *d-- = '0' + ver%10;
-                ver /= 10;
-            }
-        }
-        const int len = sizeof(full_name) - (++d - full_name);
-        char *c = (char*)memcpy(full_name + strlen(full_name) + 1, d, len);
+        do {
+            *d-- = '0' + ver%10;
+            ver /= 10;
+        } while (ver > 0);
+        *d = '.';
+        const int len = sizeof(full_name) - (d - full_name);
+        char *c = (char*)memcpy(full_name + strlen(full_name), d, len);
         memset(d, 0, len);
-        *(c-1) = '.';
 #ifdef CAPI_TARGET_OS_MAC
         c += len;
         memcpy(c, kExt, sizeof(kExt) - 1);
