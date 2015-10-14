@@ -313,7 +313,7 @@ public:
 };
 
 #ifdef CAPI_TARGET_OS_WIN
-    static const char kExt[] = "";
+    static const char kPre[] = "";
     static const char kExt[] = ".dll";
 #else
     static const char kPre[] = "lib";
@@ -365,6 +365,7 @@ public:
         *d = '.';
         const int len = sizeof(full_name) - (d - full_name);
         char *c = (char*)memcpy(full_name + strlen(full_name), d, len);
+        (void)c;
         memset(d, 0, len);
 #ifdef CAPI_TARGET_OS_MAC
         c += len;
