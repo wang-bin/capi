@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 5, Patch = 0,
+        Major = 0, Minor = 5, Patch = 1,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -329,13 +329,15 @@ public:
 #endif
 #endif
 } //namespace internal
-#if defined(_MSC_VER)
+#ifdef CAPI_TARGET_OS_WIN
 #define CAPI_SNPRINTF _snprintf
+#define CAPI_SNWPRINTF _snwprintf
 #else
 #define CAPI_SNPRINTF snprintf
+#define CAPI_SNWPRINTF snwprintf
 #endif
 void dso::setFileName(const char* name) {
-    CAPI_DBG_LOAD("dso.setFileName(\"%s\") %s", name, full_name);
+    CAPI_DBG_LOAD("dso.setFileName(\"%s\")", name, full_name);
     CAPI_SNPRINTF(full_name, sizeof(full_name), "%s%s%s", internal::kPre, name, internal::kExt);
 }
 void dso::setFileNameAndVersion(const char* name, int ver) {
@@ -356,8 +358,9 @@ bool dso::load() {
     CAPI_DBG_LOAD("dso.load: %s", full_name);
 #ifdef CAPI_TARGET_OS_WIN
 #ifdef CAPI_TARGET_OS_WINRT
-    //char16 _snwprintf
-    //handle = (void*)::LoadPackagedLibrary()
+    wchar_t wname[sizeof(full_name)];
+    CAPI_SNWPRINTF(wname, sizeof(wname), L"%s", full_name);
+    handle = (void*)::LoadPackagedLibrary(wname, 0);
 #else
     handle = (void*)::LoadLibraryExA(full_name, NULL, 0); //DONT_RESOLVE_DLL_REFERENCES
 #endif
