@@ -44,7 +44,7 @@ namespace version {
     enum {
         Major = 0,
         Minor = 4,
-        Patch = 2,
+        Patch = 3,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -329,48 +329,23 @@ class dso {
     dso(const dso&);
     dso& operator=(const dso&);
 public:
-    dso(): handle(0) {
-        memset(full_name, 0, sizeof(full_name));
-        if (sizeof(kPre) > 1)
-            memcpy(full_name, kPre, sizeof(kPre) - 1);
-    }
+    dso(): handle(0) {}
     ~dso() { unload();}
     void setFileName(const char* name) {
         CAPI_DBG_LOAD("dso.setFileName(\"%s\")", name);
-        int offset = sizeof(kPre) > 1 ? sizeof(kPre) - 1 : 0;
-        assert(strlen(name) + offset + sizeof(kExt) - 1 < sizeof(full_name));
-        memset(full_name + offset, 0, sizeof(full_name) - offset);
-        memcpy(full_name + offset, name, strlen(name));
-        offset +=strlen(name);
-        memcpy(full_name + offset, kExt, sizeof(kExt) - 1);
+        snprintf(full_name, sizeof(full_name), "%s%s%s", kPre, name, kExt);
     }
     void setFileNameAndVersion(const char* name, int ver) {
         CAPI_DBG_LOAD("dso.setFileNameAndVersion(\"%s\", %d)", name, ver);
-        setFileName(name);
         if (ver < 0)
             return;
-#ifdef CAPI_TARGET_OS_WIN // ignore version on win. xxx-V.dll?
-        return;
+#if defined(CAPI_TARGET_OS_WIN) // ignore version on win. xxx-V.dll?
+        snprintf(full_name, sizeof(full_name), "%s%s%s", kPre, name, kExt);
+#elif defined(CAPI_TARGET_OS_MAC)
+        snprintf(full_name, sizeof(full_name), "%s%s.%d%s", kPre, name, ver, kExt);
+#else
+        snprintf(full_name, sizeof(full_name), "%s%s%s.%d", kPre, name, kExt, ver);
 #endif
-        assert(strlen(full_name) + 2 < sizeof(full_name)); // + ".N"
-        // mac: libxxoo.1.dylib. unix: libxxoo.so.1
-#ifdef CAPI_TARGET_OS_MAC
-        memset(full_name + strlen(full_name) - sizeof(kExt) + 1, 0, sizeof(kExt) - 1);
-#endif
-        char* d = full_name + sizeof(full_name) - 1;
-        do {
-            *d-- = '0' + ver%10;
-            ver /= 10;
-        } while (ver > 0);
-        *d = '.';
-        const int len = sizeof(full_name) - (d - full_name);
-        char *c = (char*)memcpy(full_name + strlen(full_name), d, len);
-        (void)c;
-        memset(d, 0, len);
-#ifdef CAPI_TARGET_OS_MAC
-        c += len;
-        memcpy(c, kExt, sizeof(kExt) - 1);
-#endif //CAPI_TARGET_OS_MAC
     }
     bool load() {
         CAPI_DBG_LOAD("dso.load: %s", full_name);
@@ -401,15 +376,11 @@ public:
     }
     bool isLoaded() const { return !!handle;}
     void* resolve(const char* symbol) { return resolve(symbol, true);}
-private:
+protected:
     void* resolve(const char* sym, bool try_) {
         char _s[512]; // old a.out systems add an underscore in front of symbols
-        if (!try_) { //previous has no '_', now has '_'
-            assert(strlen(sym) + 1 < sizeof(_s));
-            memset(_s, 0, sizeof(_s));
-            memcpy(_s+1, sym, strlen(sym));
-            _s[0] = '_';
-        }
+        if (!try_) //previous has no '_', now has '_'
+            snprintf(_s, sizeof(_s), "_%s", sym);
         const char* s = try_ ? sym : _s;
         CAPI_DBG_RESOLVE("dso.resolve(\"%s\", %d)", s, try_);
 #ifdef CAPI_TARGET_OS_WIN
