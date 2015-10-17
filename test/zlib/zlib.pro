@@ -7,6 +7,7 @@ SOURCES += \
     zlib_api_test.cpp
 HEADERS += zlib_api.h
 DEFINES += QT_NO_CAST_FROM_ASCII
+unix: LIBS *= -ldl
 link_zlib {
   LIBS += -lz
   DEFINES += CAPI_LINK_ZLIB

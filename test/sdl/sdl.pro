@@ -1,4 +1,4 @@
-QT = core
+QT = #core
 TEMPLATE = app
 CONFIG -= app_bundle
 SOURCES += \
@@ -6,10 +6,5 @@ SOURCES += \
     sdl_api_test.cpp
 HEADERS += sdl_api.h
 INCLUDEPATH += /usr/local/include
+unix: LIBS *= -ldl
 include(../../capi.pri)
-
-#need SDL_Main
-mac: {
-LIBS += -L/usr/local/lib -lSDLmain -Wl,-framework,Cocoa
-LIBS += -lSDL
-}

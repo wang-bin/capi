@@ -20,8 +20,8 @@
 #define DEBUG ////log dll load and symbol resolve
 //#define CAPI_IS_LAZY_RESOLVE 0 //define it will resolve all symbols in constructor
 #ifndef CAPI_LINK_ZLIB
-// Need a library loader/resolver class whose function names like QLibrary. You can use ::capi::internal::dso
-//#include <QtCore/QLibrary> //remove this if use ::capi::internal::dso instead of QLibrary
+// Need a library loader/resolver class whose function names like QLibrary. You can use ::capi::dso
+//#include <QtCore/QLibrary> //remove this if use ::capi::dso instead of QLibrary
 #include "capi.h"
 #endif //CAPI_LINK_ZLIB
 #include "zlib_api.h" //include last because zlib.h was in namespace capi to avoid covering types later
@@ -43,7 +43,7 @@ static const char* zlib[] = {
 
 static const int versions[] = { 0, ::capi::NoVersion, 1, ::capi::EndVersion };
 //CAPI_BEGIN_DLL(zlib, QLibrary)
-CAPI_BEGIN_DLL_VER(zlib, versions, ::capi::internal::dso)
+CAPI_BEGIN_DLL_VER(zlib, versions, ::capi::dso)
 CAPI_DEFINE_ENTRY(const char*, zlibVersion, CAPI_ARG0())
 CAPI_DEFINE_ENTRY(const char*, zError, CAPI_ARG1(int))
 CAPI_END_DLL()

@@ -90,7 +90,7 @@ protected:
 } //namespace capi
 /// DLL_CLASS is a library loader and symbols resolver class. Must implement api like capi::dso (the same function name and return type, but string parameter type can be different):
 /// unload() must support ref count. i.e. do unload if no one is using the real library
-/// Currently you can use ::capi::dso and QLibrary for DLL_CLASS
+/// Currently you can use ::capi::dso and QLibrary for DLL_CLASS. You can also use your own library resolver
 #define CAPI_BEGIN_DLL(names, DLL_CLASS) \
     class api_dll : public ::capi::internal::dll_helper<DLL_CLASS> { \
     public: api_dll() : ::capi::internal::dll_helper<DLL_CLASS>(names) CAPI_DLL_BODY_DEFINE

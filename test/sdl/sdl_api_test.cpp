@@ -1,7 +1,4 @@
 #include "sdl_api.h"
-extern "C" {
-//#include <SDL/SDL.h>
-}
 class sdl_test : protected sdl::api {
 public:
     void run() {
@@ -18,7 +15,7 @@ public:
     }
 };
 
-//#undef main //SDL_main
+#undef main //SDL_main, qMain
 int main(int argc, char *argv[])
 {
     sdl_test test;
