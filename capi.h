@@ -329,19 +329,24 @@ public:
 #endif
 #endif
 } //namespace internal
+#if defined(_MSC_VER)
+#define CAPI_SNPRINTF _snprintf
+#else
+#define CAPI_SNPRINTF snprintf
+#endif
 void dso::setFileName(const char* name) {
-    CAPI_DBG_LOAD("dso.setFileName(\"%s\")", name);
-    snprintf(full_name, sizeof(full_name), "%s%s%s", internal::kPre, name, internal::kExt);
+    CAPI_DBG_LOAD("dso.setFileName(\"%s\") %s", name, full_name);
+    CAPI_SNPRINTF(full_name, sizeof(full_name), "%s%s%s", internal::kPre, name, internal::kExt);
 }
 void dso::setFileNameAndVersion(const char* name, int ver) {
     CAPI_DBG_LOAD("dso.setFileNameAndVersion(\"%s\", %d)", name, ver);
     if (ver >= 0) {
 #if defined(CAPI_TARGET_OS_WIN) // ignore version on win. xxx-V.dll?
-        snprintf(full_name, sizeof(full_name), "%s%s%s", internal::kPre, name, internal::kExt);
+        CAPI_SNPRINTF(full_name, sizeof(full_name), "%s%s%s", internal::kPre, name, internal::kExt);
 #elif defined(CAPI_TARGET_OS_MAC)
-        snprintf(full_name, sizeof(full_name), "%s%s.%d%s", internal::kPre, name, ver, internal::kExt);
+        CAPI_SNPRINTF(full_name, sizeof(full_name), "%s%s.%d%s", internal::kPre, name, ver, internal::kExt);
 #else
-        snprintf(full_name, sizeof(full_name), "%s%s%s.%d", internal::kPre, name, internal::kExt, ver);
+        CAPI_SNPRINTF(full_name, sizeof(full_name), "%s%s%s.%d", internal::kPre, name, internal::kExt, ver);
 #endif
     } else {
         setFileName(name);
@@ -351,7 +356,7 @@ bool dso::load() {
     CAPI_DBG_LOAD("dso.load: %s", full_name);
 #ifdef CAPI_TARGET_OS_WIN
 #ifdef CAPI_TARGET_OS_WINRT
-    //char16
+    //char16 _snwprintf
     //handle = (void*)::LoadPackagedLibrary()
 #else
     handle = (void*)::LoadLibraryExA(full_name, NULL, 0); //DONT_RESOLVE_DLL_REFERENCES
@@ -378,7 +383,7 @@ void* dso::resolve(const char* sym, bool try_) {
     const char* s = sym;
     char _s[512]; // old a.out systems add an underscore in front of symbols
     if (!try_) {//previous has no '_', now has '_'
-        snprintf(_s, sizeof(_s), "_%s", sym);
+        CAPI_SNPRINTF(_s, sizeof(_s), "_%s", sym);
         s = _s;
     }
     CAPI_DBG_RESOLVE("dso.resolve(\"%s\", %d)", s, try_);
