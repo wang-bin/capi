@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 2.6)
+project(capi_sdl)
+add_executable(test_sdl sdl_api.cpp sdl_api_test.cpp)
+include_directories(../..)
+include_directories(.)
