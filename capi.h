@@ -337,7 +337,7 @@ public:
 #define CAPI_SNWPRINTF snwprintf
 #endif
 void dso::setFileName(const char* name) {
-    CAPI_DBG_LOAD("dso.setFileName(\"%s\")", name, full_name);
+    CAPI_DBG_LOAD("dso.setFileName(\"%s\")", name);
     CAPI_SNPRINTF(full_name, sizeof(full_name), "%s%s%s", internal::kPre, name, internal::kExt);
 }
 void dso::setFileNameAndVersion(const char* name, int ver) {
