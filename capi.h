@@ -1,7 +1,7 @@
 /******************************************************************************
     Use C API in C++ dynamically and no link. Header only.
     Use it with a code generation tool: https://github.com/wang-bin/mkapi
-    Copyright (C) 2014-2015 Wang Bin <wbsecg1@gmail.com>
+    Copyright (C) 2014-2016 Wang Bin <wbsecg1@gmail.com>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 5, Patch = 1,
+        Major = 0, Minor = 5, Patch = 2,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -61,6 +61,7 @@ enum {
     #else
       "z",
     #endif
+      /usr/local/lib/libmyz.so, // absolute path is ok
       NULL};
     CAPI_BEGIN_DLL(zlib, ::capi::dso) // the 2nd parameter is a dynamic shared object loader class. \sa dll_helper class
     ...
@@ -261,7 +262,7 @@ protected:
 #endif
 #endif //WINAPI_FAMILY
 #endif
-#if defined(__APPLE__) && (defined(__GNUC__) || defined(__xlC__) || defined(__xlc__))
+#if defined(__APPLE__)
 #define CAPI_TARGET_OS_MAC 1
 #endif
 #ifndef CAPI_TARGET_OS_WIN
@@ -338,7 +339,10 @@ public:
 #endif
 void dso::setFileName(const char* name) {
     CAPI_DBG_LOAD("dso.setFileName(\"%s\")", name);
-    CAPI_SNPRINTF(full_name, sizeof(full_name), "%s%s%s", internal::kPre, name, internal::kExt);
+    if (name[0] == '/')
+        CAPI_SNPRINTF(full_name, sizeof(full_name), "%s", name);
+    else
+        CAPI_SNPRINTF(full_name, sizeof(full_name), "%s%s%s", internal::kPre, name, internal::kExt);
 }
 void dso::setFileNameAndVersion(const char* name, int ver) {
     CAPI_DBG_LOAD("dso.setFileNameAndVersion(\"%s\", %d)", name, ver);
