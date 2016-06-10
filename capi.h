@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 5, Patch = 2,
+        Major = 0, Minor = 6, Patch = 0,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -106,7 +106,13 @@ protected:
 #define CAPI_DEFINE_DLL api::api():dll(new api_dll()){} \
     api::~api(){delete dll;} \
     bool api::loaded() const { return dll->isLoaded();} \
-    namespace capi {static api_dll* dll = 0;}
+    namespace capi { \
+        static api_dll* dll = NULL; \
+        bool loaded() { \
+            if (!dll) dll = new api_dll(); \
+            return dll->isLoaded(); \
+        } \
+    }
 
 /*!
  * N: number of arguments
@@ -201,7 +207,7 @@ protected:
                 api_dll* dll = (api_dll*)((char*)this - ((ptrdiff_t)(&((api_dll*)0)->name##_resolver))); \
                 if (!dll->isLoaded()) { \
                     CAPI_WARN_LOAD("dll not loaded"); \
-                    *p = 0; \
+                    *p = NULL; \
                     return; \
                 } \
                 *p = (name##_t)dll->resolve(#sym); \
@@ -383,7 +389,7 @@ bool dso::unload() {
     if (::dlclose(handle) != 0) //ref counted
         return false;
 #endif
-    handle = 0; //TODO: check ref?
+    handle = NULL; //TODO: check ref?
     return true;
 }
 void* dso::resolve(const char* sym, bool try_) {

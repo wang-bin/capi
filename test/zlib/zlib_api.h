@@ -1,6 +1,6 @@
 /******************************************************************************
     An example to show how to use CAPI
-    Copyright (C) 2014 Wang Bin <wbsecg1@gmail.com>
+    Copyright (C) 2014-2016 Wang Bin <wbsecg1@gmail.com>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -36,6 +36,7 @@ namespace zlib { //need a unique namespace
 #ifndef CAPI_LINK_ZLIB // avoid ambiguous in zlib_api.cpp
 using namespace capi;
 #endif
+namespace capi { bool loaded();} // For link or NS style. Or load test for class style. api.loaded for class style.
 class api_dll; //must use this name
 class api //must use this name
 {

@@ -28,7 +28,8 @@ class test_zlib_api
 {
 public:
     void test_version() {
-        printf("zlib version: %s\n", zlibVersion());
+        printf("loaded: %d\n", zlib::capi::loaded());
+        printf("%d, zlib version: %s\n", zlib::capi::loaded(), zlibVersion());
     }
     void test_zError(int e) {
         printf("zlib error: %d => %s\n", e, zError(e));
