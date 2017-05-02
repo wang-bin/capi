@@ -229,7 +229,7 @@ protected:
 #define DEBUG_CALL
 #endif //DEBUG
 #if defined(DEBUG) || defined(DEBUG_LOAD) || defined(DEBUG_RESOLVE) || defined(DEBUG_CALL)
-#define CAPI_LOG(STDWHERE, fmt, ...) do {fprintf(STDWHERE, "[%s] %s@%d: " fmt "\n", __FILE__, CAPI_FUNC_INFO, __LINE__, ##__VA_ARGS__); fflush(0);} while(0);
+#define CAPI_LOG(STDWHERE, fmt, ...) do {fprintf(STDWHERE, "[%s] %s@%d: " fmt "\n", __FILE__, CAPI_FUNC_INFO, __LINE__, ##__VA_ARGS__); fflush(STDWHERE);} while(0);
 #else
 #define CAPI_LOG(...)
 #endif //DEBUG
@@ -304,7 +304,7 @@ public:
         static bool is_1st = true;
         if (is_1st) {
             is_1st = false;
-            fprintf(stderr, "capi::version: %s\n", ::capi::version::name); fflush(0);
+            fprintf(stderr, "capi::version: %s\n", ::capi::version::name);
         }
         for (int i = 0; names[i]; ++i) {
             for (int j = 0; versions[j] != ::capi::EndVersion; ++j) {
