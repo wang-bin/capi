@@ -1,7 +1,7 @@
 /******************************************************************************
     Use C API in C++ dynamically and no link. Header only.
     Use it with a code generation tool: https://github.com/wang-bin/mkapi
-    Copyright (C) 2014-2016 Wang Bin <wbsecg1@gmail.com>
+    Copyright (C) 2014-2017 Wang Bin <wbsecg1@gmail.com>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 6, Patch = 0,
+        Major = 0, Minor = 6, Patch = 1,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -86,6 +86,8 @@ public:
     bool isLoaded() const { return !!handle;}
     virtual void* resolve(const char* symbol) { return resolve(symbol, true);}
 protected:
+    inline void* load(const char* name);
+    inline bool unload(void* lib);
     inline void* resolve(const char* sym, bool try_);
 };
 } //namespace capi
@@ -256,9 +258,7 @@ protected:
 #endif //DEBUG_CALL
 //fully expand. used by VC. VC will not expand __VA_ARGS__ but treats it as 1 parameter
 #define EXPAND(expr) expr //TODO: rename CAPI_EXPAND
-#if defined(WIN64) || defined(_WIN64) || defined(__WIN64__) \
-    || defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) \
-    || defined(WINCE) || defined(_WIN32_WCE)
+#if defined(_WIN32) // http://nadeausoftware.com/articles/2012/01/c_c_tip_how_use_compiler_predefined_macros_detect_operating_system
 #define CAPI_TARGET_OS_WIN 1
 #include <windows.h>
 #ifdef WINAPI_FAMILY
@@ -365,31 +365,39 @@ void dso::setFileNameAndVersion(const char* name, int ver) {
     }
 }
 bool dso::load() {
-    CAPI_DBG_LOAD("dso.load: %s", full_name);
-#ifdef CAPI_TARGET_OS_WIN
-#ifdef CAPI_TARGET_OS_WINRT
-    wchar_t wname[sizeof(full_name)];
-    CAPI_SNWPRINTF(wname, sizeof(wname), L"%s", full_name);
-    handle = (void*)::LoadPackagedLibrary(wname, 0);
-#else
-    handle = (void*)::LoadLibraryExA(full_name, NULL, 0); //DONT_RESOLVE_DLL_REFERENCES
-#endif
-#else
-    handle = ::dlopen(full_name, RTLD_LAZY|RTLD_LOCAL); // try no prefix name if error?
-#endif
+    handle = load(full_name);
     return !!handle;
 }
 bool dso::unload() {
     if (!isLoaded())
         return true;
+    if (!unload(handle))
+        return false;
+    handle = NULL; //TODO: check ref?
+    return true;
+}
+void* dso::load(const char* name) {
+    CAPI_DBG_LOAD("dso.load: %s", name);
 #ifdef CAPI_TARGET_OS_WIN
-    if (!::FreeLibrary(static_cast<HMODULE>(handle))) //return 0 if error. ref counted
+#ifdef CAPI_TARGET_OS_WINRT
+    wchar_t wname[strlen(name)+1];
+    CAPI_SNWPRINTF(wname, sizeof(wname), L"%s", name);
+    return (void*)::LoadPackagedLibrary(wname, 0);
+#else
+    return (void*)::LoadLibraryExA(name, NULL, 0); //DONT_RESOLVE_DLL_REFERENCES
+#endif
+#else
+    return ::dlopen(name, RTLD_LAZY|RTLD_LOCAL); // try no prefix name if error? TODO: ios |RTLD_GLOBAL?
+#endif
+}
+bool dso::unload(void* h) {
+#ifdef CAPI_TARGET_OS_WIN
+    if (!::FreeLibrary(static_cast<HMODULE>(h))) //return 0 if error. ref counted
         return false;
 #else
     if (::dlclose(handle) != 0) //ref counted
         return false;
 #endif
-    handle = NULL; //TODO: check ref?
     return true;
 }
 void* dso::resolve(const char* sym, bool try_) {
