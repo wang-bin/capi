@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 6, Patch = 1,
+        Major = 0, Minor = 7, Patch = 0,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -73,10 +73,11 @@ enum {
   */
 class dso {
     void *handle;
-    char full_name[256];
+    char full_name[512];
     dso(const dso&);
     dso& operator=(const dso&);
 public:
+    static inline char* path_from_handle(void* handle, char* path, int path_len);
     dso(): handle(0) {}
     virtual ~dso() { unload();}
     inline void setFileName(const char* name);
@@ -85,6 +86,7 @@ public:
     inline bool unload();
     bool isLoaded() const { return !!handle;}
     virtual void* resolve(const char* symbol) { return resolve(symbol, true);}
+    const char* path() const { return full_name;} // loaded path
 protected:
     inline void* load(const char* name);
     inline bool unload(void* lib);
@@ -270,8 +272,10 @@ protected:
 #endif
 #if defined(__APPLE__)
 #define CAPI_TARGET_OS_MAC 1
+#include <mach-o/dyld.h>
 #endif
 #ifndef CAPI_TARGET_OS_WIN
+#include <link.h> // for link_map. qnx: sys/link.h
 #include <dlfcn.h>
 #endif
 namespace capi {
@@ -313,7 +317,7 @@ public:
                 else
                     m_lib.setFileNameAndVersion(strType(names[i]), versions[j]);
                 if (m_lib.load()) {
-                    CAPI_DBG_LOAD("capi loaded {library name: %s, version: %d}", names[i], versions[j]);
+                    CAPI_DBG_LOAD("capi loaded {library name: %s, version: %d}: %s", names[i], versions[j], m_lib.path());
                     return;
                 }
                 CAPI_WARN_LOAD("capi can not load {library name: %s, version %d}", names[i], versions[j]);
@@ -366,6 +370,7 @@ void dso::setFileNameAndVersion(const char* name, int ver) {
 }
 bool dso::load() {
     handle = load(full_name);
+    path_from_handle(handle, full_name, sizeof(full_name));
     return !!handle;
 }
 bool dso::unload() {
@@ -416,6 +421,50 @@ void* dso::resolve(const char* sym, bool try_) {
     if (!ptr && try_)
         return resolve(sym, false);
     return ptr;
+}
+
+char* dso::path_from_handle(void* handle, char* path, int path_len)
+{
+    if (!handle)
+        return nullptr;;
+#if (CAPI_TARGET_OS_WIN+0)
+    GetModuleFileNameA(HMODULE(handle), path, path_len);
+#elif defined(__APPLE__)
+    for (size_t i = _dyld_image_count(); i > 0; --i) {
+        const char* name = _dyld_get_image_name(i);
+        void* h = dlopen(name, RTLD_LAZY);
+        dlclose(h);
+        if ((ptrdiff_t(handle) - ptrdiff_t(h))>>2 == 0) {
+            CAPI_SNPRINTF(path, path_len, "%s", name);
+            break;
+        }
+    }
+#elif (__ANDROID__+0)
+    // from boost.dll
+    typedef struct soinfo {
+        // if defined(__work_around_b_24465209__), then an array of char[128] goes here.
+        // Unfortunately, __work_around_b_24465209__ is visible only during compilation of Android's linker
+        const void* phdr;
+        size_t      phnum;
+        void*       entry;
+        void*       base;
+        // ...          // Ignoring remaning parts of the structure
+    } soinfo;
+    static const size_t work_around_b_24465209__offset = 128;
+    Dl_info info;
+    const soinfo* si = reinterpret_cast<soinfo*>(intptr_t(handle)+work_around_b_24465209__offset);
+    if (dladdr(si->base, &info))
+        CAPI_SNPRINTF(path, path_len, "%s", info.dli_fname);
+#elif defined(RTLD_DEFAULT) // check (0+__USE_GNU+__ELF__)? weak dlinfo? // mac, mingw, cygwin has no dlinfo
+    const link_map* m = static_cast<const link_map*>(handle);
+# if defined(__FreeBSD__)
+    if (dlinfo(handle, RTLD_DI_LINKMAP, &m) < 0)
+        m = NULL;
+# endif
+    if (m->l_name && m->l_name[0])
+        CAPI_SNPRINTF(path, path_len, "%s", m->l_name);
+#endif
+    return path;
 }
 } //namespace capi
 
