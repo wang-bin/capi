@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 7, Patch = 0,
+        Major = 0, Minor = 7, Patch = 1,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -275,7 +275,9 @@ protected:
 #include <mach-o/dyld.h>
 #endif
 #ifndef CAPI_TARGET_OS_WIN
+#ifndef __APPLE__
 #include <link.h> // for link_map. qnx: sys/link.h
+#endif
 #include <dlfcn.h>
 #endif
 namespace capi {
