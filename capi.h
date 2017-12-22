@@ -387,7 +387,7 @@ void* dso::load(const char* name) {
     CAPI_DBG_LOAD("dso.load: %s", name);
 #ifdef CAPI_TARGET_OS_WIN
 #ifdef CAPI_TARGET_OS_WINRT
-    wchar_t wname[strlen(name)+1];
+    wchar_t wname[128+1]; // enough. strlen is not const expr
     CAPI_SNWPRINTF(wname, sizeof(wname), L"%s", name);
     return (void*)::LoadPackagedLibrary(wname, 0);
 #else
