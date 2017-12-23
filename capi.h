@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 7, Patch = 1,
+        Major = 0, Minor = 7, Patch = 2,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -131,15 +131,15 @@ protected:
  *    CAPI_DEFINE(const char*, zError, CAPI_ARG1(int))
  */
 #if CAPI_IS(LAZY_RESOLVE)
-#define CAPI_DEFINE(R, name, ...) EXPAND(CAPI_DEFINE2_X(R, name, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
-#define CAPI_DEFINE_ENTRY(R, name, ...) EXPAND(CAPI_DEFINE_ENTRY_X(R, name, name, __VA_ARGS__))
-#define CAPI_DEFINE_M_ENTRY(R, M, name, ...) EXPAND(CAPI_DEFINE_M_ENTRY_X(R, M, name, name, __VA_ARGS__))
+#define CAPI_DEFINE(R, name, ...) CAPI_EXPAND(CAPI_DEFINE2_X(R, name, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
+#define CAPI_DEFINE_ENTRY(R, name, ...) CAPI_EXPAND(CAPI_DEFINE_ENTRY_X(R, name, name, __VA_ARGS__))
+#define CAPI_DEFINE_M_ENTRY(R, M, name, ...) CAPI_EXPAND(CAPI_DEFINE_M_ENTRY_X(R, M, name, name, __VA_ARGS__))
 #else
-#define CAPI_DEFINE(R, name, ...) EXPAND(CAPI_DEFINE_X(R, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
-#define CAPI_DEFINE_ENTRY(R, name, ...) EXPAND(CAPI_DEFINE_RESOLVER_X(R, name, name, __VA_ARGS__))
-#define CAPI_DEFINE_M_ENTRY(R, M, name, ...) EXPAND(CAPI_DEFINE_M_RESOLVER_X(R, M, name, name, __VA_ARGS__))
+#define CAPI_DEFINE(R, name, ...) CAPI_EXPAND(CAPI_DEFINE_X(R, name, __VA_ARGS__)) /* not ##__VA_ARGS__ !*/
+#define CAPI_DEFINE_ENTRY(R, name, ...) CAPI_EXPAND(CAPI_DEFINE_RESOLVER_X(R, name, name, __VA_ARGS__))
+#define CAPI_DEFINE_M_ENTRY(R, M, name, ...) CAPI_EXPAND(CAPI_DEFINE_M_RESOLVER_X(R, M, name, name, __VA_ARGS__))
 #endif
-//EXPAND(CAPI_DEFINE##N(R, name, #name, __VA_ARGS__))
+//CAPI_EXPAND(CAPI_DEFINE##N(R, name, #name, __VA_ARGS__))
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /************The followings are used internally**********/
@@ -220,6 +220,25 @@ protected:
             } \
         } name##_resolver;
 
+#if defined(_WIN32) // http://nadeausoftware.com/articles/2012/01/c_c_tip_how_use_compiler_predefined_macros_detect_operating_system
+# define CAPI_TARGET_OS_WIN 1
+# ifdef WINAPI_FAMILY
+#   include <winapifamily.h>
+#   if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#       define CAPI_TARGET_OS_WINRT 1
+#   endif
+# endif //WINAPI_FAMILY
+#endif
+#if defined(__APPLE__)
+# define CAPI_TARGET_OS_MAC 1
+# include <mach-o/dyld.h>
+#endif
+#ifndef CAPI_TARGET_OS_WIN
+# ifndef __APPLE__
+#   include <link.h> // for link_map. qnx: sys/link.h
+# endif
+# include <dlfcn.h>
+#endif
 #if defined(__GNUC__)
 #  define CAPI_FUNC_INFO __PRETTY_FUNCTION__
 #elif defined(_MSC_VER)
@@ -228,58 +247,46 @@ protected:
 #  define CAPI_FUNC_INFO __FUNCTION__
 #endif
 #ifdef DEBUG
-#define DEBUG_LOAD
-#define DEBUG_RESOLVE
-#define DEBUG_CALL
+# define DEBUG_LOAD
+# define DEBUG_RESOLVE
+# define DEBUG_CALL
 #endif //DEBUG
 #if defined(DEBUG) || defined(DEBUG_LOAD) || defined(DEBUG_RESOLVE) || defined(DEBUG_CALL)
-#define CAPI_LOG(STDWHERE, fmt, ...) do {fprintf(STDWHERE, "[%s] %s@%d: " fmt "\n", __FILE__, CAPI_FUNC_INFO, __LINE__, ##__VA_ARGS__); fflush(STDWHERE);} while(0);
+# ifdef CAPI_TARGET_OS_WINRT
+#  define CAPI_LOG(STDWHERE, fmt, ...) do { \
+    char msg[512]; \
+    _snprintf(msg, sizeof(msg), "[%s] %s@%d: " fmt "\n", __FILE__, CAPI_FUNC_INFO, __LINE__, ##__VA_ARGS__); \
+    OutputDebugStringA(msg); \
+} while(false);
+# else
+#  define CAPI_LOG(STDWHERE, fmt, ...) do {fprintf(STDWHERE, "[%s] %s@%d: " fmt "\n", __FILE__, CAPI_FUNC_INFO, __LINE__, ##__VA_ARGS__); fflush(STDWHERE);} while(0);
+# endif
 #else
-#define CAPI_LOG(...)
+# define CAPI_LOG(...)
 #endif //DEBUG
 #ifdef DEBUG_LOAD
-#define CAPI_DBG_LOAD(...) EXPAND(CAPI_LOG(stdout, ##__VA_ARGS__))
-#define CAPI_WARN_LOAD(...) EXPAND(CAPI_LOG(stderr, ##__VA_ARGS__))
+#define CAPI_DBG_LOAD(...) CAPI_EXPAND(CAPI_LOG(stdout, ##__VA_ARGS__))
+#define CAPI_WARN_LOAD(...) CAPI_EXPAND(CAPI_LOG(stderr, ##__VA_ARGS__))
 #else
 #define CAPI_DBG_LOAD(...)
 #define CAPI_WARN_LOAD(...)
 #endif //DEBUG_LOAD
 #ifdef DEBUG_RESOLVE
-#define CAPI_DBG_RESOLVE(...) EXPAND(CAPI_LOG(stdout, ##__VA_ARGS__))
-#define CAPI_WARN_RESOLVE(...) EXPAND(CAPI_LOG(stderr, ##__VA_ARGS__))
+#define CAPI_DBG_RESOLVE(...) CAPI_EXPAND(CAPI_LOG(stdout, ##__VA_ARGS__))
+#define CAPI_WARN_RESOLVE(...) CAPI_EXPAND(CAPI_LOG(stderr, ##__VA_ARGS__))
 #else
 #define CAPI_DBG_RESOLVE(...)
 #define CAPI_WARN_RESOLVE(...)
 #endif //DEBUG_RESOLVE
 #ifdef DEBUG_CALL
-#define CAPI_DBG_CALL(...) EXPAND(CAPI_LOG(stdout, ##__VA_ARGS__))
-#define CAPI_WARN_CALL(...) EXPAND(CAPI_LOG(stderr, ##__VA_ARGS__))
+#define CAPI_DBG_CALL(...) CAPI_EXPAND(CAPI_LOG(stdout, ##__VA_ARGS__))
+#define CAPI_WARN_CALL(...) CAPI_EXPAND(CAPI_LOG(stderr, ##__VA_ARGS__))
 #else
 #define CAPI_DBG_CALL(...)
 #define CAPI_WARN_CALL(...)
 #endif //DEBUG_CALL
 //fully expand. used by VC. VC will not expand __VA_ARGS__ but treats it as 1 parameter
-#define EXPAND(expr) expr //TODO: rename CAPI_EXPAND
-#if defined(_WIN32) // http://nadeausoftware.com/articles/2012/01/c_c_tip_how_use_compiler_predefined_macros_detect_operating_system
-#define CAPI_TARGET_OS_WIN 1
-#include <windows.h>
-#ifdef WINAPI_FAMILY
-#include <winapifamily.h>
-#if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-#define CAPI_TARGET_OS_WINRT 1
-#endif
-#endif //WINAPI_FAMILY
-#endif
-#if defined(__APPLE__)
-#define CAPI_TARGET_OS_MAC 1
-#include <mach-o/dyld.h>
-#endif
-#ifndef CAPI_TARGET_OS_WIN
-#ifndef __APPLE__
-#include <link.h> // for link_map. qnx: sys/link.h
-#endif
-#include <dlfcn.h>
-#endif
+#define CAPI_EXPAND(expr) expr
 namespace capi {
 namespace internal {
 // the following code is for the case DLL=QLibrary + QT_NO_CAST_FROM_ASCII
