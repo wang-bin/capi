@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 7, Patch = 2,
+        Major = 0, Minor = 8, Patch = 0,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -352,10 +352,8 @@ public:
 } //namespace internal
 #ifdef CAPI_TARGET_OS_WIN
 #define CAPI_SNPRINTF _snprintf
-#define CAPI_SNWPRINTF _snwprintf
 #else
 #define CAPI_SNPRINTF snprintf
-#define CAPI_SNWPRINTF snwprintf
 #endif
 void dso::setFileName(const char* name) {
     CAPI_DBG_LOAD("dso.setFileName(\"%s\")", name);
@@ -396,7 +394,7 @@ void* dso::load(const char* name) {
 #ifdef CAPI_TARGET_OS_WIN
 #ifdef CAPI_TARGET_OS_WINRT
     wchar_t wname[128+1]; // enough. strlen is not const expr
-    CAPI_SNWPRINTF(wname, sizeof(wname), L"%s", name);
+    mbstowcs(wname, name, strlen(name)+1);
     return (void*)::LoadPackagedLibrary(wname, 0);
 #else
     return (void*)::LoadLibraryExA(name, NULL, 0); //DONT_RESOLVE_DLL_REFERENCES
