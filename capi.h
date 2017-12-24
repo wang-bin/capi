@@ -222,6 +222,7 @@ protected:
 
 #if defined(_WIN32) // http://nadeausoftware.com/articles/2012/01/c_c_tip_how_use_compiler_predefined_macros_detect_operating_system
 # define CAPI_TARGET_OS_WIN 1
+# include <windows.h>
 # ifdef WINAPI_FAMILY
 #   include <winapifamily.h>
 #   if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
