@@ -1,7 +1,7 @@
 /******************************************************************************
     Use C API in C++ dynamically and no link. Header only.
     Use it with a code generation tool: https://github.com/wang-bin/mkapi
-    Copyright (C) 2014-2017 Wang Bin <wbsecg1@gmail.com>
+    Copyright (C) 2014-2018 Wang Bin <wbsecg1@gmail.com>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 8, Patch = 0,
+        Major = 0, Minor = 8, Patch = 1,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -198,7 +198,6 @@ protected:
     } }
 
 // nested class can not call non-static members outside the class, so hack the address here
-// need -Wno-invalid-offsetof
 #define CAPI_DEFINE_M_RESOLVER_T_V(R, M, name, sym, ARG_T, ARG_T_V, ARG_V) \
     public: \
         typedef R (M *name##_t) ARG_T; \
@@ -206,9 +205,8 @@ protected:
     private: \
         struct name##_resolver_t { \
             name##_resolver_t() { \
-                const ptrdiff_t diff = ptrdiff_t(&((api_dll*)0)->name##_resolver) - ptrdiff_t(&((api_dll*)0)->name); \
-                name##_t *p = (name##_t*)((char*)this - diff); \
-                api_dll* dll = (api_dll*)((char*)this - ((ptrdiff_t)(&((api_dll*)0)->name##_resolver))); \
+                name##_t *p = (name##_t*)((intptr_t)this - (offsetof(name##_resolver, api_dll) - offsetof(name, api_dll))); \
+                api_dll* dll = (api_dll*)((intptr_t)this - offsetof(name##_resolver, api_dll)); \
                 if (!dll->isLoaded()) { \
                     CAPI_WARN_LOAD("dll not loaded"); \
                     *p = NULL; \
@@ -442,7 +440,7 @@ char* dso::path_from_handle(void* handle, char* path, int path_len)
         const char* name = _dyld_get_image_name(i);
         void* h = dlopen(name, RTLD_LAZY);
         dlclose(h);
-        if ((ptrdiff_t(handle) - ptrdiff_t(h))>>2 == 0) {
+        if ((intptr_t(handle) - intptr_t(h))>>2 == 0) {
             CAPI_SNPRINTF(path, path_len, "%s", name);
             break;
         }
@@ -479,11 +477,6 @@ char* dso::path_from_handle(void* handle, char* path, int path_len)
 #if defined(_MSC_VER)
 #pragma warning(disable:4098) //vc return void
 #endif //_MSC_VER
-#ifdef __GNUC__
-//gcc: ((T*)0)->member
-//no #pragma GCC diagnostic push/pop around because code is defined as a macro
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
-#endif
 /*!
  * used by .cpp to define the api
  *  e.g. CAPI_DEFINE(cl_int, clGetPlatformIDs, "clGetPlatformIDs", CAPI_ARG3(cl_uint, cl_platform_id*, cl_uint*))
