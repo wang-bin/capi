@@ -235,8 +235,12 @@ protected:
 #ifndef CAPI_TARGET_OS_WIN
 # ifndef __APPLE__
 #   include <link.h> // for link_map. qnx: sys/link.h
+#   if (__ANDROID__+0) && defined(__arm__) && __ANDROID_API__ < 21
+extern "C" int dl_iterate_phdr(int (*__callback)(struct dl_phdr_info*, size_t, void*), void* __data);
+#   endif
 # endif
 # include <dlfcn.h>
+_Pragma("weak dladdr") // dladdr is not always supported
 #endif
 #if defined(__GNUC__)
 #  define CAPI_FUNC_INFO __PRETTY_FUNCTION__
@@ -429,6 +433,22 @@ void* dso::resolve(const char* sym, bool try_) {
     return ptr;
 }
 
+#if defined(RTLD_DEFAULT)
+struct path_string {
+    char* path;
+    int len;
+};
+
+static int dl_iterate_callback(struct dl_phdr_info *info, size_t size, void *data)
+{
+    path_string* p = static_cast<path_string*>(data);
+    //printf("name=%s (%d segments), path: %s\n", info->dlpi_name, info->dlpi_phnum, p->path);
+    if (!info->dlpi_name || !strstr(info->dlpi_name, p->path))
+        return 0;
+    return CAPI_SNPRINTF(p->path, p->len, "%s", info->dlpi_name);
+}
+#endif
+
 char* dso::path_from_handle(void* handle, char* path, int path_len)
 {
     if (!handle)
@@ -446,20 +466,28 @@ char* dso::path_from_handle(void* handle, char* path, int path_len)
         }
     }
 #elif (__ANDROID__+0)
-    // from boost.dll
+_Pragma("weak dl_iterate_phdr") // arm: api21+
+    if (dl_iterate_phdr) {
+        path_string ps;
+        ps.path = path;
+        ps.len = path_len;
+        dl_iterate_phdr(dl_iterate_callback, &ps);
+        return path;
+    }
+    // from boost.dll, platform_bionic/linker/linker_soinfo.h
+    // dlopen does not return soinfo ptr since api23(ae74e875): https://stackoverflow.com/questions/39325753/dlopen-is-not-working-with-android-n
+    enum { work_around_b_24465209__offset = 128 };
     typedef struct soinfo {
-        // if defined(__work_around_b_24465209__), then an array of char[128] goes here.
-        // Unfortunately, __work_around_b_24465209__ is visible only during compilation of Android's linker
         const void* phdr;
         size_t      phnum;
-        void*       entry;
+        void*       entry; //
         void*       base;
         // ...          // Ignoring remaning parts of the structure
     } soinfo;
-    static const size_t work_around_b_24465209__offset = 128;
+    const int offset =  work_around_b_24465209__offset;
     Dl_info info;
-    const soinfo* si = reinterpret_cast<soinfo*>(intptr_t(handle)+work_around_b_24465209__offset);
-    if (dladdr(si->base, &info))
+    const soinfo* si = reinterpret_cast<soinfo*>(intptr_t(handle)+offset);
+    if (dladdr && dladdr(si, &info))
         CAPI_SNPRINTF(path, path_len, "%s", info.dli_fname);
 #elif defined(RTLD_DEFAULT) // check (0+__USE_GNU+__ELF__)? weak dlinfo? // mac, mingw, cygwin has no dlinfo
     const link_map* m = static_cast<const link_map*>(handle);
