@@ -227,21 +227,19 @@ protected:
 #       define CAPI_TARGET_OS_WINRT 1
 #   endif
 # endif //WINAPI_FAMILY
-#endif
-#if defined(__APPLE__)
-# define CAPI_TARGET_OS_MAC 1
-# include <mach-o/dyld.h>
-#endif
-#ifndef CAPI_TARGET_OS_WIN
-# ifndef __APPLE__
-#   include <link.h> // for link_map. qnx: sys/link.h
-#   if (__ANDROID__+0) && defined(__arm__) && __ANDROID_API__ < 21
-extern "C" int dl_iterate_phdr(int (*__callback)(struct dl_phdr_info*, size_t, void*), void* __data);
-#   endif
-# endif
+#else
 # include <dlfcn.h>
 _Pragma("weak dladdr") // dladdr is not always supported
 #endif
+#if (__MACH__+0)
+# define CAPI_TARGET_OS_MAC 1
+# include <mach-o/dyld.h>
+#elif (__ELF__+0)
+# include <link.h> // for link_map. qnx: sys/link.h
+# if (__ANDROID__+0) && defined(__arm__) && __ANDROID_API__ < 21
+extern "C" int dl_iterate_phdr(int (*__callback)(struct dl_phdr_info*, size_t, void*), void* __data);
+# endif
+#endif // (__ELF__+0)
 #if defined(__GNUC__)
 #  define CAPI_FUNC_INFO __PRETTY_FUNCTION__
 #elif defined(_MSC_VER)
@@ -433,7 +431,7 @@ void* dso::resolve(const char* sym, bool try_) {
     return ptr;
 }
 
-#if defined(RTLD_DEFAULT)
+#if defined(RTLD_DEFAULT) && defined(__ELF__) && (__ANDROID__+0) // android only now
 struct path_string {
     char* path;
     int len;
@@ -455,7 +453,7 @@ char* dso::path_from_handle(void* handle, char* path, int path_len)
         return nullptr;;
 #if (CAPI_TARGET_OS_WIN+0)
     GetModuleFileNameA(HMODULE(handle), path, path_len);
-#elif defined(__APPLE__)
+#elif (__MACH__+0)
     for (size_t i = _dyld_image_count(); i > 0; --i) {
         const char* name = _dyld_get_image_name(i);
         void* h = dlopen(name, RTLD_LAZY);
