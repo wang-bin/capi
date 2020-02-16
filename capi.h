@@ -1,7 +1,7 @@
 /******************************************************************************
     Use C API in C++ dynamically and no link. Header only.
     Use it with a code generation tool: https://github.com/wang-bin/mkapi
-    Copyright (C) 2014-2018 Wang Bin <wbsecg1@gmail.com>
+    Copyright (C) 2014-2020 Wang Bin <wbsecg1@gmail.com>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -42,7 +42,7 @@
 namespace capi {
 namespace version {
     enum {
-        Major = 0, Minor = 8, Patch = 1,
+        Major = 0, Minor = 8, Patch = 2,
         Value = ((Major&0xff)<<16) | ((Minor&0xff)<<8) | (Patch&0xff)
     };
     static const char name[] = { Major + '0', '.', Minor + '0', '.', Patch + '0', 0 };
@@ -82,13 +82,13 @@ public:
     virtual ~dso() { unload();}
     inline void setFileName(const char* name);
     inline void setFileNameAndVersion(const char* name, int ver);
-    inline bool load();
+    inline bool load(bool test);
     inline bool unload();
     bool isLoaded() const { return !!handle;}
     virtual void* resolve(const char* symbol) { return resolve(symbol, true);}
     const char* path() const { return full_name;} // loaded path
 protected:
-    inline void* load(const char* name);
+    inline void* load(const char* name, bool test);
     inline bool unload(void* lib);
     inline void* resolve(const char* sym, bool try_);
 };
@@ -101,7 +101,7 @@ protected:
     public: api_dll() : ::capi::internal::dll_helper<DLL_CLASS>(names) CAPI_DLL_BODY_DEFINE
 #define CAPI_BEGIN_DLL_VER(names, versions, DLL_CLASS) \
     class api_dll : public ::capi::internal::dll_helper<DLL_CLASS> { \
-    public: api_dll() : ::capi::internal::dll_helper<DLL_CLASS>(names, versions) CAPI_DLL_BODY_DEFINE
+    public: api_dll(bool test = false) : ::capi::internal::dll_helper<DLL_CLASS>(names, versions, test) CAPI_DLL_BODY_DEFINE
 #if CAPI_IS(LAZY_RESOLVE)
 #define CAPI_END_DLL() } api_t; api_t api; };
 #else
@@ -314,7 +314,7 @@ template <class DLL> class dll_helper { //no CAPI_EXPORT required
         return dso_trait<DLL>::qstr_t::fromLatin1(s);
     }
 public:
-    dll_helper(const char* names[], const int versions[] = kDefaultVersions) {
+    dll_helper(const char* names[], const int versions[] = kDefaultVersions, bool test = false) {
         static bool is_1st = true;
         if (is_1st) {
             is_1st = false;
@@ -326,11 +326,11 @@ public:
                     m_lib.setFileName(strType(names[i]));
                 else
                     m_lib.setFileNameAndVersion(strType(names[i]), versions[j]);
-                if (m_lib.load()) {
-                    CAPI_DBG_LOAD("capi loaded {library name: %s, version: %d}: %s", names[i], versions[j], m_lib.path());
+                if (m_lib.load(test)) {
+                    CAPI_DBG_LOAD("capi loaded {library name: %s, version: %d}: %s, test: %d", names[i], versions[j], m_lib.path(), test);
                     return;
                 }
-                CAPI_WARN_LOAD("capi can not load {library name: %s, version %d}", names[i], versions[j]);
+                CAPI_WARN_LOAD("capi can not load {library name: %s, version %d, test: %d}", names[i], versions[j], test);
             }
         }
     }
@@ -376,8 +376,8 @@ void dso::setFileNameAndVersion(const char* name, int ver) {
         setFileName(name);
     }
 }
-bool dso::load() {
-    handle = load(full_name);
+bool dso::load(bool test) {
+    handle = load(full_name, test);
     path_from_handle(handle, full_name, sizeof(full_name));
     return !!handle;
 }
@@ -389,18 +389,24 @@ bool dso::unload() {
     handle = NULL; //TODO: check ref?
     return true;
 }
-void* dso::load(const char* name) {
-    CAPI_DBG_LOAD("dso.load: %s", name);
+
+void* dso::load(const char* name, bool test) {
+    CAPI_DBG_LOAD("dso.load: %s, test: %d", name, test);
 #ifdef CAPI_TARGET_OS_WIN
 #ifdef CAPI_TARGET_OS_WINRT
     wchar_t wname[128+1]; // enough. strlen is not const expr
     mbstowcs(wname, name, strlen(name)+1);
     return (void*)::LoadPackagedLibrary(wname, 0);
 #else
+    if (test)
+        return ::GetModuleHandleA(name);
     return (void*)::LoadLibraryExA(name, NULL, 0); //DONT_RESOLVE_DLL_REFERENCES
 #endif
 #else
-    return ::dlopen(name, RTLD_LAZY|RTLD_LOCAL); // try no prefix name if error? TODO: ios |RTLD_GLOBAL?
+    int flags = RTLD_LAZY|RTLD_LOCAL;
+    if (test)
+        flags |= RTLD_NOLOAD; // gnu/apple extension
+    return ::dlopen(name, flags); // try no prefix name if error? TODO: ios |RTLD_GLOBAL?
 #endif
 }
 bool dso::unload(void* h) {
@@ -431,7 +437,7 @@ void* dso::resolve(const char* sym, bool try_) {
     return ptr;
 }
 
-#if defined(RTLD_DEFAULT) && defined(__ELF__) && (__ANDROID__+0) // android only now
+#if defined(RTLD_DEFAULT) && defined(__ELF__) && (__BIONIC__+0) // android only now
 struct path_string {
     char* path;
     int len;
@@ -463,7 +469,7 @@ char* dso::path_from_handle(void* handle, char* path, int path_len)
             break;
         }
     }
-#elif (__ANDROID__+0)
+#elif (__BIONIC__+0)
 _Pragma("weak dl_iterate_phdr") // arm: api21+
     if (dl_iterate_phdr) {
         path_string ps;
