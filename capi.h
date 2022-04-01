@@ -1,7 +1,7 @@
 /******************************************************************************
     Use C API in C++ dynamically and no link. Header only.
     Use it with a code generation tool: https://github.com/wang-bin/mkapi
-    Copyright (C) 2014-2020 Wang Bin <wbsecg1@gmail.com>
+    Copyright (C) 2014-2022 Wang Bin <wbsecg1@gmail.com>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -144,7 +144,7 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /************The followings are used internally**********/
 #if CAPI_IS(LAZY_RESOLVE)
-#define CAPI_DLL_BODY_DEFINE { memset(&api, 0, sizeof(api));} typedef struct {
+#define CAPI_DLL_BODY_DEFINE { memset(&api, 0, sizeof(api));} typedef struct api_t {
 #else
 #define CAPI_DLL_BODY_DEFINE { CAPI_DBG_RESOLVE("capi resolved dll symbols...");}
 #endif
